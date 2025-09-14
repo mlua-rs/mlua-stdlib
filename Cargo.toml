@@ -16,6 +16,4 @@ luau = ["mlua/luau"]
 
 [dependencies]
 mlua = { version = "0.11" }
-
-[dev-dependencies]
-mlua = { version = "0.11", features = ["macros"] }
+owo-colors = "4"

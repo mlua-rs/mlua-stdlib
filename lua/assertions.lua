@@ -1,3 +1,4 @@
+local opts = ... or {}
 local assertions = {}
 
 function assertions.assert_eq(left, right, message)
@@ -7,7 +8,8 @@ function assertions.assert_eq(left, right, message)
         else
             message = "assertion `left == right` failed!"
         end
-        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)))
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)), frame_level)
     end
 end
 
@@ -18,7 +20,8 @@ function assertions.assert_ne(left, right, message)
         else
             message = "assertion `left ~= right` failed!"
         end
-        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)))
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)), frame_level)
     end
 end
 
@@ -80,9 +83,10 @@ function assertions.assert_same(left, right, message)
         else
             message = "assertion `left ~ right` failed!"
         end
-        error(
+        local error_msg =
             string.format("%s\n  left%s: %s\n right%s: %s", message, level, tostring(left_v), level, tostring(right_v))
-        )
+        local frame_level = opts.level or 2
+        error(error_msg, frame_level)
     end
 end
 
