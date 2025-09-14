@@ -11,6 +11,9 @@ fn run_file(modname: &str) -> Result<()> {
     mlua_stdlib::assertions::register(&lua, None)?;
     let testing = mlua_stdlib::testing::register(&lua, None)?;
 
+    #[cfg(feature = "json")]
+    mlua_stdlib::json::register(&lua, None)?;
+
     // Add `testing` global variable (an instance of the testing framework)
     let testing = testing.call_function::<Table>("new", modname)?;
     lua.globals().set("testing", &testing)?;
@@ -29,14 +32,21 @@ fn run_file(modname: &str) -> Result<()> {
 }
 
 macro_rules! include_tests {
-    ($($name:ident, )*) => { $(
+    ($($name:ident,)*) => {
+        $(
         #[test]
         fn $name() -> Result<()> {
             run_file(stringify!($name))
         }
-    )*}
+        )*
+    };
+
+    ($name:ident) => { include_tests! { $name, } };
 }
 
 include_tests! {
     assertions,
 }
+
+#[cfg(feature = "json")]
+include_tests!(json);

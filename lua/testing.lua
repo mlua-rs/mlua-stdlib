@@ -211,7 +211,7 @@ function Testing:_print_results()
         failed,
         skipped,
         total,
-        duration
+        tostring(duration)
     )
     println()
     println(prefix, stats)
