@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use mlua::{
     AnyUserData, Error as LuaError, ExternalResult, Function, Integer as LuaInteger, IntoLuaMulti, Lua,
-    LuaSerdeExt, MetaMethod, MultiValue, Result, String as LuaString, Table, UserData, UserDataMethods,
-    UserDataRefMut, Value,
+    LuaSerdeExt, MetaMethod, MultiValue, Result, SerializeOptions, String as LuaString, Table, UserData,
+    UserDataMethods, UserDataRefMut, Value,
 };
 use ouroboros::self_referencing;
 use serde::{Serialize, Serializer};
@@ -188,9 +188,15 @@ struct LuaJsonMapIter {
     iter: serde_json::map::Iter<'this>,
 }
 
-fn decode(lua: &Lua, data: StringOrBytes) -> Result<StdResult<Value, String>> {
+fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<StdResult<Value, String>> {
+    let opts = opts.as_ref();
+    let mut options = SerializeOptions::new();
+    if let Some(enabled) = opts.and_then(|t| t.get::<bool>("set_array_metatable").ok()) {
+        options = options.set_array_metatable(enabled);
+    }
+
     let json: serde_json::Value = lua_try!(serde_json::from_slice(&data.as_bytes_deref()).into_lua_err());
-    Ok(Ok(lua.to_value(&json)?))
+    Ok(Ok(lua.to_value_with(&json, options)?))
 }
 
 fn decode_native(lua: &Lua, data: StringOrBytes) -> Result<StdResult<Value, String>> {

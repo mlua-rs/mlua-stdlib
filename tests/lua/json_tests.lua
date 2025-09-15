@@ -31,6 +31,12 @@ testing:test("decode", function(t)
     value, err = json.decode("{a:1}")
     t.assert_eq(value, nil)
     t.assert(err:find("key must be a string"), "unexpected error message: " .. err)
+
+    -- No array metatable by default
+    value, err = json.decode("[1,2,3]", { set_array_metatable = false })
+    t.assert_eq(err, nil)
+    t.assert_eq(type(value), "table", "value is not a table")
+    t.assert_eq(getmetatable(value), nil, "array metatable is set")
 end)
 
 -- Test decode to native object
