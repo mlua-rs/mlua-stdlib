@@ -1,0 +1,2 @@
+[lua54]
+features = "lua54,vendored,json,regex,yaml"
