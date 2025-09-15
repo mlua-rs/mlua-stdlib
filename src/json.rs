@@ -2,9 +2,9 @@ use std::result::Result as StdResult;
 use std::sync::Arc;
 
 use mlua::{
-    AnyUserData, Error as LuaError, ExternalResult, Function, Integer as LuaInteger, IntoLuaMulti, Lua,
-    LuaSerdeExt, MetaMethod, MultiValue, Result, SerializeOptions, String as LuaString, Table, UserData,
-    UserDataMethods, UserDataRefMut, Value,
+    AnyUserData, Error as LuaError, Function, Integer as LuaInteger, IntoLuaMulti, Lua, LuaSerdeExt,
+    MetaMethod, MultiValue, Result, SerializeOptions, String as LuaString, Table, UserData, UserDataMethods,
+    UserDataRefMut, Value,
 };
 use ouroboros::self_referencing;
 use serde::{Serialize, Serializer};
@@ -195,12 +195,12 @@ fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<Std
         options = options.set_array_metatable(enabled);
     }
 
-    let json: serde_json::Value = lua_try!(serde_json::from_slice(&data.as_bytes_deref()).into_lua_err());
+    let json: serde_json::Value = lua_try!(serde_json::from_slice(&data.as_bytes_deref()));
     Ok(Ok(lua.to_value_with(&json, options)?))
 }
 
 fn decode_native(lua: &Lua, data: StringOrBytes) -> Result<StdResult<Value, String>> {
-    let json: serde_json::Value = lua_try!(serde_json::from_slice(&data.as_bytes_deref()).into_lua_err());
+    let json: serde_json::Value = lua_try!(serde_json::from_slice(&data.as_bytes_deref()));
     Ok(Ok(lua_try!(JsonObject::from(json).into_lua(lua))))
 }
 
