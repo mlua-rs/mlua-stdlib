@@ -1,0 +1,56 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        lua: [lua51, lua52, lua53, lua54, luau]
+    steps:
+      - uses: actions/checkout@main
+      - name: Cache cargo
+        uses: actions/cache@main
+        with:
+          path: |
+            ~/.cargo
+            ./target
+          key: test-${{ runner.os }}-${{ matrix.lua }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Run ${{ matrix.lua }} tests (basic)
+        run: |
+          cargo test --features ${{ matrix.lua }},vendored
+      - name: Run ${{ matrix.lua }} tests (full)
+        run: |
+          cargo test --features ${{ matrix.lua }},vendored,json,regex,yaml
+
+  rustfmt:
+    name: Rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@main
+      - name: Cache cargo
+        uses: actions/cache@main
+        with:
+          path: |
+            ~/.cargo
+            ./target
+          key: clippy-${{ runner.os }}
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: |
+          cargo clippy --features lua54,vendored,json,regex,yaml -- -D warnings
