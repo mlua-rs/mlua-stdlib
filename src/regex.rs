@@ -27,12 +27,7 @@ static CACHE: LazyLock<Cache<String, Regex>> = LazyLock::new(|| Cache::new(REGEX
 impl Regex {
     /// Creates a new cached regex or retrieves it from the cache if it already exists.
     pub fn new(_: &Lua, re: &str) -> StdResult<Self, regex::Error> {
-        if let Some(re) = CACHE.get(re) {
-            return Ok(re);
-        }
-        let regex = Self(regex::bytes::Regex::new(re)?);
-        CACHE.insert(re.to_string(), regex.clone());
-        Ok(regex)
+        CACHE.get_or_insert_with(re, || regex::bytes::Regex::new(re).map(Self))
     }
 }
 
