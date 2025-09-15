@@ -15,3 +15,5 @@ pub mod testing;
 
 #[cfg(feature = "json")]
 pub mod json;
+#[cfg(feature = "regex")]
+pub mod regex;

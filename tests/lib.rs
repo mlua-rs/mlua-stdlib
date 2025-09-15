@@ -13,6 +13,8 @@ fn run_file(modname: &str) -> Result<()> {
 
     #[cfg(feature = "json")]
     mlua_stdlib::json::register(&lua, None)?;
+    #[cfg(feature = "regex")]
+    mlua_stdlib::regex::register(&lua, None)?;
 
     // Add `testing` global variable (an instance of the testing framework)
     let testing = testing.call_function::<Table>("new", modname)?;
@@ -50,3 +52,5 @@ include_tests! {
 
 #[cfg(feature = "json")]
 include_tests!(json);
+#[cfg(feature = "regex")]
+include_tests!(regex);
