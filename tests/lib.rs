@@ -35,26 +35,22 @@ fn run_file(modname: &str) -> Result<()> {
     return Err(Error::runtime(msg));
 }
 
+// Helper macro to generate Rust test functions for Lua test modules.
 macro_rules! include_tests {
-    ($($name:ident,)*) => {
+    ($( $(#[$meta:meta])? $name:ident $(,)? )*) => {
         $(
-        #[test]
-        fn $name() -> Result<()> {
-            run_file(stringify!($name))
-        }
+            $(#[$meta])*
+            #[test]
+            fn $name() -> Result<()> {
+                run_file(stringify!($name))
+            }
         )*
     };
-
-    ($name:ident) => { include_tests! { $name, } };
 }
 
 include_tests! {
     assertions,
+    #[cfg(feature = "json")] json,
+    #[cfg(feature = "regex")] regex,
+    #[cfg(feature = "yaml")] yaml,
 }
-
-#[cfg(feature = "json")]
-include_tests!(json);
-#[cfg(feature = "regex")]
-include_tests!(regex);
-#[cfg(feature = "yaml")]
-include_tests!(yaml);
