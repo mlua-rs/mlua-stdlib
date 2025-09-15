@@ -30,7 +30,7 @@ impl Regex {
         if let Some(re) = CACHE.get(re) {
             return Ok(re);
         }
-        let regex = Self(regex::bytes::Regex::new(&re)?);
+        let regex = Self(regex::bytes::Regex::new(re)?);
         CACHE.insert(re.to_string(), regex.clone());
         Ok(regex)
     }

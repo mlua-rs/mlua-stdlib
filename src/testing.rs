@@ -9,7 +9,7 @@ pub(crate) fn loader(lua: &Lua) -> Result<Table> {
         let opts = lua.create_table()?;
         opts.set("level", 3)?;
         lua.load(include_str!("../lua/assertions.lua"))
-            .set_name(format!("@mlua-stdlib/assertions.lua"))
+            .set_name("@mlua-stdlib/assertions.lua")
             .call::<Value>(opts)?
     };
     deps.set("assertions", assertions)?;
@@ -19,7 +19,7 @@ pub(crate) fn loader(lua: &Lua) -> Result<Table> {
     deps.set("instant", lua.create_function(crate::time::instant)?)?;
 
     lua.load(include_str!("../lua/testing.lua"))
-        .set_name(format!("@mlua-stdlib/testing.lua"))
+        .set_name("@mlua-stdlib/testing.lua")
         .call(deps)
 }
 

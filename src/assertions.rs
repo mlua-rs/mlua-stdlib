@@ -3,7 +3,7 @@ use mlua::{Lua, Result, Table};
 /// A loader for the `assertions` module.
 fn loader(lua: &Lua) -> Result<Table> {
     lua.load(include_str!("../lua/assertions.lua"))
-        .set_name(format!("@mlua-stdlib/assertions.lua"))
+        .set_name("@mlua-stdlib/assertions.lua")
         .call(())
 }
 
