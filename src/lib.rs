@@ -17,3 +17,5 @@ pub mod testing;
 pub mod json;
 #[cfg(feature = "regex")]
 pub mod regex;
+#[cfg(feature = "yaml")]
+pub mod yaml;

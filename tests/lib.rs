@@ -13,6 +13,8 @@ fn run_file(modname: &str) -> Result<()> {
 
     #[cfg(feature = "json")]
     mlua_stdlib::json::register(&lua, None)?;
+    #[cfg(feature = "yaml")]
+    mlua_stdlib::yaml::register(&lua, None)?;
     #[cfg(feature = "regex")]
     mlua_stdlib::regex::register(&lua, None)?;
 
@@ -54,3 +56,5 @@ include_tests! {
 include_tests!(json);
 #[cfg(feature = "regex")]
 include_tests!(regex);
+#[cfg(feature = "yaml")]
+include_tests!(yaml);
