@@ -4,42 +4,42 @@ use std::result::Result as StdResult;
 use mlua::{Lua, Result, Table};
 
 /// Returns the current working directory
-fn current_dir(_lua: &Lua, _: ()) -> Result<StdResult<PathBuf, String>> {
+pub fn current_dir(_lua: &Lua, _: ()) -> Result<StdResult<PathBuf, String>> {
     let dir = lua_try!(std::env::current_dir());
     Ok(Ok(dir))
 }
 
 /// Changes the current working directory to the specified path
-fn set_current_dir(_lua: &Lua, path: String) -> Result<StdResult<bool, String>> {
+pub fn set_current_dir(_lua: &Lua, path: String) -> Result<StdResult<bool, String>> {
     lua_try!(std::env::set_current_dir(path));
     Ok(Ok(true))
 }
 
 /// Returns the full filesystem path of the current running executable
-fn current_exe(_lua: &Lua, _: ()) -> Result<StdResult<PathBuf, String>> {
+pub fn current_exe(_lua: &Lua, _: ()) -> Result<StdResult<PathBuf, String>> {
     let exe = lua_try!(std::env::current_exe());
     Ok(Ok(exe))
 }
 
 /// Returns the path of the current user’s home directory if known
-fn home_dir(_lua: &Lua, _: ()) -> Result<Option<PathBuf>> {
+pub fn home_dir(_lua: &Lua, _: ()) -> Result<Option<PathBuf>> {
     Ok(std::env::home_dir())
 }
 
 /// Fetches the environment variable key from the current process
-fn var(_lua: &Lua, key: String) -> Result<Option<String>> {
+pub fn var(_lua: &Lua, key: String) -> Result<Option<String>> {
     Ok(std::env::var(key).ok())
 }
 
 /// Returns a table containing all environment variables of the current process
-fn vars(lua: &Lua, _: ()) -> Result<Table> {
+pub fn vars(lua: &Lua, _: ()) -> Result<Table> {
     lua.create_table_from(std::env::vars())
 }
 
 /// Sets the environment variable key to the value in the current process
 ///
 /// If value is Nil, the environment variable will be removed
-fn set_var(_lua: &Lua, (key, value): (String, Option<String>)) -> Result<()> {
+pub fn set_var(_lua: &Lua, (key, value): (String, Option<String>)) -> Result<()> {
     match value {
         Some(v) => unsafe { std::env::set_var(key, v) },
         None => unsafe { std::env::remove_var(key) },

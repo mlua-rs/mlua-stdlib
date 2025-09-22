@@ -9,6 +9,7 @@ use quick_cache::sync::Cache;
 // A reasonable cache size for regexes. This can be adjusted as needed.
 const REGEX_CACHE_SIZE: usize = 256;
 
+/// A compiled regular expression.
 #[derive(Clone, Debug)]
 pub struct Regex(regex::bytes::Regex);
 
@@ -152,25 +153,25 @@ impl UserData for RegexSet {
 /// Compiles a regular expression.
 ///
 /// Once compiled, it can be used repeatedly to search, split or replace substrings in a text.
-fn regex_new(lua: &Lua, re: LuaString) -> Result<StdResult<Regex, String>> {
+pub fn regex_new(lua: &Lua, re: LuaString) -> Result<StdResult<Regex, String>> {
     let re = re.to_str()?;
     Ok(Ok(lua_try!(Regex::new(lua, &re))))
 }
 
 /// Escapes a string so that it can be used as a literal in a regular expression.
-fn regex_escape(_: &Lua, text: LuaString) -> Result<String> {
+pub fn regex_escape(_: &Lua, text: LuaString) -> Result<String> {
     Ok(regex::escape(&text.to_str()?))
 }
 
 /// Returns true if there is a match for the regex anywhere in the given text.
-fn regex_is_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<bool, String>> {
+pub fn regex_is_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<bool, String>> {
     let re = re.to_str()?;
     let re = lua_try!(Regex::new(lua, &re));
     Ok(Ok(re.is_match(&text.as_bytes())))
 }
 
 /// Returns all matches of the regex in the given text or nil if there is no match.
-fn regex_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<Value, String>> {
+pub fn regex_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<Value, String>> {
     let re = re.to_str()?;
     let re = lua_try!(Regex::new(lua, &re));
     match re.captures(&text.as_bytes()) {

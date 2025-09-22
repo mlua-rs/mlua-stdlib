@@ -194,7 +194,11 @@ struct LuaYamlMapIter {
     iter: serde_yaml::mapping::Iter<'this>,
 }
 
-fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<StdResult<Value, String>> {
+/// Decodes a YAML string or byte array into a Lua value.
+///
+/// The `opts` table can contain the following options:
+/// - `set_array_metatable` (boolean): If true, sets a metatable for arrays. Default is false.
+pub fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<StdResult<Value, String>> {
     let opts = opts.as_ref();
     let mut options = SerializeOptions::new();
     if let Some(enabled) = opts.and_then(|t| t.get::<bool>("set_array_metatable").ok()) {
@@ -206,13 +210,20 @@ fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<Std
     Ok(Ok(lua.to_value_with(&yaml, options)?))
 }
 
-fn decode_native(lua: &Lua, data: StringOrBytes) -> Result<StdResult<Value, String>> {
+/// Decodes a YAML string or bytes as a native Rust object.
+///
+/// The returned value can be a primitive type or userdata.
+pub fn decode_native(lua: &Lua, data: StringOrBytes) -> Result<StdResult<Value, String>> {
     let mut yaml: serde_yaml::Value = lua_try!(serde_yaml::from_slice(&data.as_bytes_deref()));
     lua_try!(yaml.apply_merge());
     Ok(Ok(lua_try!(YamlObject::from(yaml).into_lua(lua))))
 }
 
-fn encode(value: Value, opts: Option<Table>) -> StdResult<String, String> {
+/// Encodes a Lua value into a YAML string.
+///
+/// The optional `opts` table can contain:
+/// - `relaxed` (boolean): If true, skip recursive tables and unsupported types. Default is false.
+pub fn encode(value: Value, opts: Option<Table>) -> StdResult<String, String> {
     let opts = opts.as_ref();
     let mut value = value.to_serializable();
 

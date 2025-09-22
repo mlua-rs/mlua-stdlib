@@ -21,7 +21,8 @@ impl<T: AsRef<[u8]> + MaybeSend + 'static> From<T> for BytesBox {
 
 impl UserData for BytesBox {}
 
-pub(crate) enum StringOrBytes {
+/// A type that can represent either a Lua string or a `BytesBox` userdata.
+pub enum StringOrBytes {
     String(LuaString),
     Bytes(UserDataRef<BytesBox>),
 }

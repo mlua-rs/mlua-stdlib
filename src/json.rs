@@ -188,7 +188,11 @@ struct LuaJsonMapIter {
     iter: serde_json::map::Iter<'this>,
 }
 
-fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<StdResult<Value, String>> {
+/// Decodes a JSON string or bytes into a Lua value.
+///
+/// The optional `opts` table can contain:
+/// - `set_array_metatable` (boolean): If true, sets a metatable for arrays. Default is false.
+pub fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<StdResult<Value, String>> {
     let opts = opts.as_ref();
     let mut options = SerializeOptions::new();
     if let Some(enabled) = opts.and_then(|t| t.get::<bool>("set_array_metatable").ok()) {
@@ -199,20 +203,28 @@ fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<Std
     Ok(Ok(lua.to_value_with(&json, options)?))
 }
 
-fn decode_native(lua: &Lua, data: StringOrBytes) -> Result<StdResult<Value, String>> {
+/// Decodes a JSON string or bytes as a native Rust object.
+///
+/// The returned value can be a primitive type or userdata.
+pub fn decode_native(lua: &Lua, data: StringOrBytes) -> Result<StdResult<Value, String>> {
     let json: serde_json::Value = lua_try!(serde_json::from_slice(&data.as_bytes_deref()));
     Ok(Ok(lua_try!(JsonObject::from(json).into_lua(lua))))
 }
 
-fn encode(value: Value, options: Option<Table>) -> StdResult<String, String> {
+/// Encodes a Lua value into a JSON string.
+///
+/// The optional `opts` table can contain:
+/// - `pretty` (boolean): If true, pretty formats the JSON string. Default is false.
+/// - `relaxed` (boolean): If true, skip recursive tables and unsupported types. Default is false.
+pub fn encode(value: Value, opts: Option<Table>) -> StdResult<String, String> {
     let mut value = value.to_serializable();
-    let options = options.as_ref();
+    let opts = opts.as_ref();
 
-    if options.and_then(|t| t.get::<bool>("relaxed").ok()) == Some(true) {
+    if opts.and_then(|t| t.get::<bool>("relaxed").ok()) == Some(true) {
         value = value.deny_recursive_tables(false).deny_unsupported_types(false);
     }
 
-    if options.and_then(|t| t.get::<bool>("pretty").ok()) == Some(true) {
+    if opts.and_then(|t| t.get::<bool>("pretty").ok()) == Some(true) {
         value = value.sort_keys(true);
         return serde_json::to_string_pretty(&value).map_err(|e| e.to_string());
     }
