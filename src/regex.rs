@@ -153,25 +153,25 @@ impl UserData for RegexSet {
 /// Compiles a regular expression.
 ///
 /// Once compiled, it can be used repeatedly to search, split or replace substrings in a text.
-pub fn regex_new(lua: &Lua, re: LuaString) -> Result<StdResult<Regex, String>> {
+pub fn new(lua: &Lua, re: LuaString) -> Result<StdResult<Regex, String>> {
     let re = re.to_str()?;
     Ok(Ok(lua_try!(Regex::new(lua, &re))))
 }
 
 /// Escapes a string so that it can be used as a literal in a regular expression.
-pub fn regex_escape(_: &Lua, text: LuaString) -> Result<String> {
+pub fn escape(_: &Lua, text: LuaString) -> Result<String> {
     Ok(regex::escape(&text.to_str()?))
 }
 
 /// Returns true if there is a match for the regex anywhere in the given text.
-pub fn regex_is_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<bool, String>> {
+pub fn is_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<bool, String>> {
     let re = re.to_str()?;
     let re = lua_try!(Regex::new(lua, &re));
     Ok(Ok(re.is_match(&text.as_bytes())))
 }
 
 /// Returns all matches of the regex in the given text or nil if there is no match.
-pub fn regex_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<Value, String>> {
+pub fn r#match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdResult<Value, String>> {
     let re = re.to_str()?;
     let re = lua_try!(Regex::new(lua, &re));
     match re.captures(&text.as_bytes()) {
@@ -189,10 +189,10 @@ pub fn regex_match(lua: &Lua, (re, text): (LuaString, LuaString)) -> Result<StdR
 /// A loader for the `regex` module.
 fn loader(lua: &Lua) -> Result<Table> {
     let t = lua.create_table()?;
-    t.set("new", lua.create_function(regex_new)?)?;
-    t.set("escape", lua.create_function(regex_escape)?)?;
-    t.set("is_match", lua.create_function(regex_is_match)?)?;
-    t.set("match", lua.create_function(regex_match)?)?;
+    t.set("new", lua.create_function(new)?)?;
+    t.set("escape", lua.create_function(escape)?)?;
+    t.set("is_match", lua.create_function(is_match)?)?;
+    t.set("match", lua.create_function(r#match)?)?;
     t.set("RegexSet", lua.create_proxy::<RegexSet>()?)?;
     Ok(t)
 }
