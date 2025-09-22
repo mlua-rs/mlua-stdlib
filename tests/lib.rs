@@ -9,6 +9,7 @@ fn run_file(modname: &str) -> Result<()> {
 
     // Preload all modules
     mlua_stdlib::assertions::register(&lua, None)?;
+    mlua_stdlib::env::register(&lua, None)?;
     let testing = mlua_stdlib::testing::register(&lua, None)?;
 
     #[cfg(feature = "json")]
@@ -50,6 +51,7 @@ macro_rules! include_tests {
 
 include_tests! {
     assertions,
+    env,
     #[cfg(feature = "json")] json,
     #[cfg(feature = "regex")] regex,
     #[cfg(feature = "yaml")] yaml,

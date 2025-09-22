@@ -11,6 +11,7 @@ pub(crate) mod time;
 
 pub mod assertions;
 pub mod bytes;
+pub mod env;
 pub mod testing;
 
 #[cfg(feature = "json")]
