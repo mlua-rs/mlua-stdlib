@@ -35,6 +35,20 @@ testing:test("decode", function(t)
     t.assert_eq(err, nil)
     t.assert_eq(value.key, "value")
     t.assert_eq(value.number, 42)
+
+    -- Test null_as_nil option
+    value = yaml.decode("a: null\nb: 1")
+    t.assert_eq(type(value.a), "userdata", "null should be userdata by default")
+    t.assert_eq(value.b, 1)
+
+    value = yaml.decode("a: null\nb: 1", { null_as_nil = true })
+    t.assert_eq(value.a, nil, "null should be nil when null_as_nil is true")
+    t.assert_eq(value.b, 1)
+
+    -- Test with alternative YAML null representations
+    value = yaml.decode("a: ~\nb: 1", { null_as_nil = true })
+    t.assert_eq(value.a, nil, "~ should be nil when null_as_nil is true")
+    t.assert_eq(value.b, 1)
 end)
 
 -- Test decode to native object

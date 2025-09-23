@@ -198,11 +198,17 @@ struct LuaYamlMapIter {
 ///
 /// The `opts` table can contain the following options:
 /// - `set_array_metatable` (boolean): If true, sets a metatable for arrays. Default is false.
+/// - `null_as_nil` (boolean): If true, `null`s will be represented as Lua `nil`. Default is false.
 pub fn decode(lua: &Lua, (data, opts): (StringOrBytes, Option<Table>)) -> Result<StdResult<Value, String>> {
     let opts = opts.as_ref();
     let mut options = SerializeOptions::new();
-    if let Some(enabled) = opts.and_then(|t| t.get::<bool>("set_array_metatable").ok()) {
+    if let Some(enabled) = opts.and_then(|t| t.raw_get::<bool>("set_array_metatable").ok()) {
         options = options.set_array_metatable(enabled);
+    }
+    if let Some(enabled) = opts.and_then(|t| t.raw_get::<bool>("null_as_nil").ok()) {
+        options = options
+            .serialize_unit_to_null(!enabled)
+            .serialize_none_to_null(!enabled);
     }
 
     let mut yaml: serde_yaml::Value = lua_try!(serde_yaml::from_slice(&data.as_bytes_deref()));
@@ -227,7 +233,7 @@ pub fn encode(value: Value, opts: Option<Table>) -> StdResult<String, String> {
     let opts = opts.as_ref();
     let mut value = value.to_serializable();
 
-    if opts.and_then(|t| t.get::<bool>("relaxed").ok()) == Some(true) {
+    if opts.and_then(|t| t.raw_get::<bool>("relaxed").ok()) == Some(true) {
         value = value.deny_recursive_tables(false).deny_unsupported_types(false);
     }
 
