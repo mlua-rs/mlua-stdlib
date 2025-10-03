@@ -36,6 +36,14 @@ function TestContext.assert_eq(a, b, msg)
     assertions.assert_eq(a, b, msg)
 end
 
+function TestContext.assert_ne(a, b, msg)
+    assertions.assert_ne(a, b, msg)
+end
+
+function TestContext.assert_match(a, b, msg)
+    assertions.assert_match(a, b, msg)
+end
+
 function TestContext.assert_same(a, b, msg)
     assertions.assert_same(a, b, msg)
 end
@@ -100,7 +108,7 @@ function Testing:_run_single_test(test)
     -- Run the test
     local test_ok, test_err = pcall(test.func, ctx)
     if not test_ok then
-        if test_err and test_err:match("^__SKIP__:") then
+        if type(test_err) == "string" and test_err:match("^__SKIP__:") then
             success, err = "skip", test_err:match("^__SKIP__: (.*)")
         else
             success, err = false, test_err

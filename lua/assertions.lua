@@ -25,6 +25,18 @@ function assertions.assert_ne(left, right, message)
     end
 end
 
+function assertions.assert_match(obj, pattern, message)
+    if not tostring(obj):match(pattern) then
+        if message ~= nil then
+            message = string.format("assertion `obj:match(pattern)` failed: %s", tostring(message))
+        else
+            message = "assertion `obj:match(pattern)` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  pattern: %s\n  obj: %s", message, pattern, tostring(obj)), frame_level)
+    end
+end
+
 local function next_level(level, k)
     if type(k) == "string" then
         return level .. '["' .. k .. '"]'

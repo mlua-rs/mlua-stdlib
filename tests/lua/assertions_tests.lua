@@ -2,6 +2,7 @@ local assertions = require("@assertions")
 
 local assert_eq = assertions.assert_eq
 local assert_ne = assertions.assert_ne
+local assert_match = assertions.assert_match
 local assert_same = assertions.assert_same
 
 testing:test("assert_eq", function()
@@ -50,6 +51,23 @@ testing:test("assert_ne", function()
     assert(err:match("assertion `left ~= right` failed: custom message"))
     assert(err:match("  left: nil"))
     assert(err:match(" right: nil"))
+end)
+
+testing:test("assert_match", function()
+    assert_match("hello world", "hello")
+    assert_match("12345", "%d+")
+
+    local ok, err = pcall(assert_match, "hello world", "bye")
+    assert(not ok)
+    assert(err:match("assertion `obj:match%(pattern%)` failed!"))
+    assert(err:match("  pattern: bye"))
+    assert(err:match("  obj: hello world"))
+
+    ok, err = pcall(assert_match, "foo", "bar", "custom message")
+    assert(not ok)
+    assert(err:match("assertion `obj:match%(pattern%)` failed: custom message"))
+    assert(err:match("  pattern: bar"))
+    assert(err:match("  obj: foo"))
 end)
 
 testing:test("assert_same", function()
