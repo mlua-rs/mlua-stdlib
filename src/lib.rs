@@ -20,3 +20,5 @@ pub mod json;
 pub mod regex;
 #[cfg(feature = "yaml")]
 pub mod yaml;
+
+pub mod http;

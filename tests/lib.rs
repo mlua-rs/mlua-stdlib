@@ -18,6 +18,8 @@ fn run_file(modname: &str) -> Result<()> {
     mlua_stdlib::yaml::register(&lua, None)?;
     #[cfg(feature = "regex")]
     mlua_stdlib::regex::register(&lua, None)?;
+    #[cfg(feature = "http")]
+    mlua_stdlib::http::register(&lua, None)?;
 
     // Add `testing` global variable (an instance of the testing framework)
     let testing = testing.call_function::<Table>("new", modname)?;
@@ -38,14 +40,32 @@ fn run_file(modname: &str) -> Result<()> {
 
 // Helper macro to generate Rust test functions for Lua test modules.
 macro_rules! include_tests {
-    ($( $(#[$meta:meta])? $name:ident $(,)? )*) => {
-        $(
-            $(#[$meta])*
-            #[test]
-            fn $name() -> Result<()> {
-                run_file(stringify!($name))
-            }
-        )*
+    () => {};
+
+    // Grouped tests
+    ($(#[$meta:meta])? $group:ident { $($item:ident),* $(,)? }, $($rest:tt)*) => {
+        $(#[$meta])*
+        mod $group {
+            use super::*;
+            $(
+                #[test]
+                fn $item() -> Result<()> {
+                    run_file(&format!("{}/{}", stringify!($group), stringify!($item)))
+                }
+            )*
+        }
+
+        include_tests!( $($rest)* );
+    };
+
+    ($(#[$meta:meta])? $name:ident, $($rest:tt)*) => {
+        $(#[$meta])*
+        #[test]
+        fn $name() -> Result<()> {
+            run_file(stringify!($name))
+        }
+
+        include_tests!( $($rest)* );
     };
 }
 
@@ -55,4 +75,9 @@ include_tests! {
     #[cfg(feature = "json")] json,
     #[cfg(feature = "regex")] regex,
     #[cfg(feature = "yaml")] yaml,
+
+    #[cfg(feature = "http")]
+    http {
+        headers,
+    },
 }
