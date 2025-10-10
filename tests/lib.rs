@@ -4,13 +4,14 @@ use std::path::Path;
 
 use mlua::{Error, Lua, ObjectLike, Result, Table};
 
-fn run_file(modname: &str) -> Result<()> {
+async fn run_file(modname: &str) -> Result<()> {
     let lua = Lua::new();
 
     // Preload all modules
     mlua_stdlib::assertions::register(&lua, None)?;
     mlua_stdlib::env::register(&lua, None)?;
     let testing = mlua_stdlib::testing::register(&lua, None)?;
+    mlua_stdlib::time::register(&lua, None)?;
 
     #[cfg(feature = "json")]
     mlua_stdlib::json::register(&lua, None)?;
@@ -20,6 +21,8 @@ fn run_file(modname: &str) -> Result<()> {
     mlua_stdlib::regex::register(&lua, None)?;
     #[cfg(feature = "http")]
     mlua_stdlib::http::register(&lua, None)?;
+    #[cfg(feature = "task")]
+    mlua_stdlib::task::register(&lua, None)?;
 
     // Add `testing` global variable (an instance of the testing framework)
     let testing = testing.call_function::<Table>("new", modname)?;
@@ -28,14 +31,16 @@ fn run_file(modname: &str) -> Result<()> {
     let path = format!("tests/lua/{modname}_tests.lua");
     lua.load(Path::new(&path)).exec()?;
 
-    // Run the tests and check results
-    let (ok, _results) = testing.call_method::<(bool, Table)>("run", ())?;
+    let local = tokio::task::LocalSet::new();
+    let (ok, _results) = local
+        .run_until(testing.call_async_method::<(bool, Table)>("run", ()))
+        .await?;
     if ok {
         return Ok(());
     }
 
     let msg = format!("Tests failed for {modname}");
-    return Err(Error::runtime(msg));
+    Err(Error::runtime(msg))
 }
 
 // Helper macro to generate Rust test functions for Lua test modules.
@@ -48,9 +53,9 @@ macro_rules! include_tests {
         mod $group {
             use super::*;
             $(
-                #[test]
-                fn $item() -> Result<()> {
-                    run_file(&format!("{}/{}", stringify!($group), stringify!($item)))
+                #[tokio::test]
+                async fn $item() -> Result<()> {
+                    run_file(&format!("{}/{}", stringify!($group), stringify!($item))).await
                 }
             )*
         }
@@ -60,9 +65,9 @@ macro_rules! include_tests {
 
     ($(#[$meta:meta])? $name:ident, $($rest:tt)*) => {
         $(#[$meta])*
-        #[test]
-        fn $name() -> Result<()> {
-            run_file(stringify!($name))
+        #[tokio::test]
+        async fn $name() -> Result<()> {
+            run_file(stringify!($name)).await
         }
 
         include_tests!( $($rest)* );
@@ -80,4 +85,7 @@ include_tests! {
     http {
         headers,
     },
+
+    #[cfg(feature = "task")]
+    task,
 }
