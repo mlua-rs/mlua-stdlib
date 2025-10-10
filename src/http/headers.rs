@@ -72,7 +72,7 @@ impl UserData for Headers {
         registry.add_method("to_table", |lua, this, ()| {
             let table = lua.create_table_with_capacity(0, this.0.keys_len())?;
             for key in this.0.keys() {
-                let name = lua.create_string(&key)?;
+                let name = lua.create_string(key)?;
                 let mut iter = this.0.get_all(key).iter().enumerate().peekable();
                 let mut values = None;
                 while let Some((i, value)) = iter.next() {
