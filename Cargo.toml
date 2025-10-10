@@ -13,6 +13,7 @@ lua52 = ["mlua/lua52"]
 lua53 = ["mlua/lua53"]
 lua54 = ["mlua/lua54"]
 luau = ["mlua/luau"]
+async = ["mlua/async", "dep:tokio", "dep:tokio-util"]
 send = ["mlua/send"]
 vendored = ["mlua/vendored"]
 
@@ -20,7 +21,7 @@ json = ["mlua/serde", "dep:ouroboros", "dep:serde", "dep:serde_json"]
 regex = ["dep:regex", "dep:ouroboros", "dep:quick_cache"]
 yaml = ["mlua/serde", "dep:ouroboros", "dep:serde", "dep:serde_yaml"]
 http = ["dep:http"]
-task = ["dep:tokio", "dep:tokio-util", "mlua/async"]
+task = ["async"]
 
 [dependencies]
 mlua = { version = "0.11" }

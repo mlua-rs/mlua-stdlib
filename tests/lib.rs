@@ -31,10 +31,15 @@ async fn run_file(modname: &str) -> Result<()> {
     let path = format!("tests/lua/{modname}_tests.lua");
     lua.load(Path::new(&path)).exec()?;
 
-    let local = tokio::task::LocalSet::new();
-    let (ok, _results) = local
-        .run_until(testing.call_async_method::<(bool, Table)>("run", ()))
-        .await?;
+    #[cfg(feature = "async")]
+    let (ok, _results) = {
+        let local = tokio::task::LocalSet::new();
+        local
+            .run_until(testing.call_async_method::<(bool, Table)>("run", ()))
+            .await?
+    };
+    #[cfg(not(feature = "async"))]
+    let (ok, _results) = testing.call_method::<(bool, Table)>("run", ())?;
     if ok {
         return Ok(());
     }

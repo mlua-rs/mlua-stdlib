@@ -1,3 +1,5 @@
+#![allow(unused_macros)]
+
 macro_rules! lua_try {
     ($result:expr) => {
         match $result {
