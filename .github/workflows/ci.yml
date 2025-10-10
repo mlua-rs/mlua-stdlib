@@ -25,7 +25,7 @@ jobs:
           cargo test --features ${{ matrix.lua }},vendored
       - name: Run ${{ matrix.lua }} tests (full)
         run: |
-          cargo test --features ${{ matrix.lua }},vendored,json,regex,yaml
+          cargo test --features ${{ matrix.lua }},vendored,json,regex,yaml,http,task
 
   rustfmt:
     name: Rustfmt
@@ -53,4 +53,4 @@ jobs:
         with:
           components: clippy
       - run: |
-          cargo clippy --features lua54,vendored,json,regex,yaml -- -D warnings
+          cargo clippy --features lua54,vendored,json,regex,yaml,http,task -- -D warnings
