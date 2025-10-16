@@ -1,5 +1,7 @@
 use mlua::{Lua, Result, Table};
 
+pub(crate) use headers::{Headers, LuaHeaderMapExt};
+
 /// A loader for the `http` module.
 fn loader(lua: &Lua) -> Result<Table> {
     let t = lua.create_table()?;

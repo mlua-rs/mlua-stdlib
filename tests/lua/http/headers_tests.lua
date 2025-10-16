@@ -104,3 +104,15 @@ testing:test("Headers errors", function(t)
     t.assert_eq(ok, false)
     t.assert_match(err, "failed to parse header value")
 end)
+
+testing:test("Headers to_json", function(t)
+    local headers = http.Headers.new({
+        ["Set-Cookie"] = { "id=123", "token=abc" },
+    })
+    if headers.to_json == nil then
+        t.skip("`json` feature is not enabled")
+        return
+    end
+    local json = headers:to_json()
+    t.assert_eq(json, '{"set-cookie":["id=123","token=abc"]}')
+end)

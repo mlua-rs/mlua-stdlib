@@ -5,7 +5,7 @@ use mlua::{
 };
 
 #[derive(Clone)]
-pub(crate) struct Headers(HeaderMap);
+pub(crate) struct Headers(pub(crate) HeaderMap);
 
 impl UserData for Headers {
     fn register(registry: &mut mlua::UserDataRegistry<Self>) {
@@ -15,42 +15,27 @@ impl UserData for Headers {
         });
 
         registry.add_method("get", |lua, this, name: LuaString| {
-            let name = name.to_str()?;
-            (this.0.get(&*name))
-                .map(|v| lua.create_string(v.as_ref()))
-                .transpose()
+            LuaHeaderMapExt::get(&this.0, lua, &name)
         });
 
         registry.add_method("get_all", |lua, this, name: LuaString| {
-            let name = name.to_str()?;
-            (this.0.get_all(&*name))
-                .iter()
-                .map(|v| lua.create_string(v.as_ref()))
-                .collect::<Result<Vec<_>>>()
+            LuaHeaderMapExt::get_all(&this.0, lua, &name)
         });
 
         registry.add_method("get_count", |_, this, name: LuaString| {
-            let name = name.to_str()?;
-            Ok(this.0.get_all(&*name).iter().count())
+            LuaHeaderMapExt::get_count(&this.0, &name)
         });
 
         registry.add_method_mut("set", |_, this, (name, value): (LuaString, LuaString)| {
-            let name = HeaderName::from_lua(name)?;
-            let value = HeaderValue::from_lua(value)?;
-            this.0.insert(name, value);
-            Ok(())
+            LuaHeaderMapExt::set(&mut this.0, &name, &value)
         });
 
         registry.add_method_mut("add", |_, this, (name, value): (LuaString, LuaString)| {
-            let name = HeaderName::from_lua(name)?;
-            let value = HeaderValue::from_lua(value)?;
-            Ok(this.0.append(name, value))
+            LuaHeaderMapExt::add(&mut this.0, &name, &value)
         });
 
         registry.add_method_mut("remove", |_, this, name: LuaString| {
-            let name = HeaderName::from_lua(name)?;
-            this.0.remove(&name);
-            Ok(())
+            LuaHeaderMapExt::remove(&mut this.0, &name)
         });
 
         registry.add_method("count", |_, this, ()| Ok(this.0.len()));
@@ -95,6 +80,15 @@ impl UserData for Headers {
             Ok(table)
         });
 
+        #[cfg(feature = "json")]
+        registry.add_method("to_json", |lua, this, ()| {
+            let mut writer = Vec::new();
+            // TODO: pretty, sorted
+            let mut serializer = serde_json::Serializer::new(&mut writer);
+            lua_try!(http_serde_ext::header_map::serialize(&this.0, &mut serializer));
+            Ok(Ok(lua.create_string(writer)?))
+        });
+
         // Index
         registry.add_meta_method(MetaMethod::Index, |lua, this, key: LuaString| {
             let key = key.to_str()?;
@@ -108,19 +102,19 @@ impl UserData for Headers {
         registry.add_meta_method_mut(
             MetaMethod::NewIndex,
             |_, this, (key, value): (LuaString, Either<Option<LuaString>, Table>)| {
-                let key = HeaderName::from_lua(key)?;
+                let key = HeaderName::from_lua(&key)?;
                 match value {
                     Either::Left(None) => {
                         this.0.remove(&key);
                     }
                     Either::Left(Some(v)) => {
-                        let value = HeaderValue::from_lua(v)?;
+                        let value = HeaderValue::from_lua(&v)?;
                         this.0.insert(key, value);
                     }
                     Either::Right(t) => {
                         this.0.remove(&key);
                         for (i, v) in t.sequence_values::<LuaString>().enumerate() {
-                            let value = HeaderValue::from_lua(v?)?;
+                            let value = HeaderValue::from_lua(&v?)?;
                             if i == 0 {
                                 this.0.insert(key.clone(), value);
                                 continue;
@@ -132,6 +126,12 @@ impl UserData for Headers {
                 Ok(())
             },
         );
+
+        // Len
+        registry.add_meta_method(MetaMethod::Len, |_, this, ()| Ok(this.0.len()));
+
+        #[cfg(feature = "luau")]
+        registry.enable_namecall();
     }
 }
 
@@ -141,15 +141,15 @@ impl FromLua for Headers {
             Value::Table(table) => {
                 let mut headers = HeaderMap::new();
                 table.for_each::<LuaString, Value>(|key, value| {
-                    let name = HeaderName::from_lua(key)?;
+                    let name = HeaderName::from_lua(&key)?;
                     // Maybe `value` is a list of values
                     if let Value::Table(values) = value {
                         for value in values.sequence_values::<LuaString>() {
-                            headers.append(name.clone(), HeaderValue::from_lua(value?)?);
+                            headers.append(name.clone(), HeaderValue::from_lua(&value?)?);
                         }
                     } else {
                         let value = lua.unpack::<LuaString>(value)?;
-                        headers.append(name, HeaderValue::from_lua(value)?);
+                        headers.append(name, HeaderValue::from_lua(&value)?);
                     }
                     Ok(())
                 })?;
@@ -196,22 +196,84 @@ fn set_headers_metatable(lua: &Lua, headers: &Table) -> Result<()> {
     headers.set_metatable(Some(metatable))
 }
 
-pub(crate) trait LuaHeaderExt {
-    fn from_lua(value: LuaString) -> Result<Self>
+pub(crate) trait LuaHeaderValueExt {
+    fn from_lua(value: &LuaString) -> Result<Self>
     where
         Self: Sized;
 }
 
-impl LuaHeaderExt for HeaderName {
+impl LuaHeaderValueExt for HeaderName {
     #[inline]
-    fn from_lua(value: LuaString) -> Result<Self> {
+    fn from_lua(value: &LuaString) -> Result<Self> {
         HeaderName::from_bytes(&value.as_bytes()).into_lua_err()
     }
 }
 
-impl LuaHeaderExt for HeaderValue {
+impl LuaHeaderValueExt for HeaderValue {
     #[inline]
-    fn from_lua(value: LuaString) -> Result<Self> {
+    fn from_lua(value: &LuaString) -> Result<Self> {
         HeaderValue::from_bytes(&value.as_bytes()).into_lua_err()
+    }
+}
+
+pub(crate) trait LuaHeaderMapExt {
+    fn get(&self, lua: &Lua, name: &LuaString) -> Result<Option<LuaString>>;
+
+    fn get_all(&self, lua: &Lua, name: &LuaString) -> Result<Vec<LuaString>>;
+
+    fn get_count(&self, name: &LuaString) -> Result<usize>;
+
+    fn set(&mut self, name: &LuaString, value: &LuaString) -> Result<()>;
+
+    fn add(&mut self, name: &LuaString, value: &LuaString) -> Result<()>;
+
+    fn remove(&mut self, name: &LuaString) -> Result<()>;
+}
+
+impl LuaHeaderMapExt for HeaderMap {
+    #[inline]
+    fn get(&self, lua: &Lua, name: &LuaString) -> Result<Option<LuaString>> {
+        let name = name.to_str()?;
+        self.get(&*name)
+            .map(|v| lua.create_string(v.as_ref()))
+            .transpose()
+    }
+
+    #[inline]
+    fn get_all(&self, lua: &Lua, name: &LuaString) -> Result<Vec<LuaString>> {
+        let name = name.to_str()?;
+        self.get_all(&*name)
+            .iter()
+            .map(|v| lua.create_string(v.as_ref()))
+            .collect()
+    }
+
+    #[inline]
+    fn get_count(&self, name: &LuaString) -> Result<usize> {
+        let name = name.to_str()?;
+        Ok(self.get_all(&*name).iter().count())
+    }
+
+    #[inline]
+    fn set(&mut self, name: &LuaString, value: &LuaString) -> Result<()> {
+        let name = HeaderName::from_lua(name)?;
+        let value = HeaderValue::from_lua(value)?;
+        self.insert(name, value);
+        Ok(())
+    }
+
+    #[inline]
+    fn add(&mut self, name: &LuaString, value: &LuaString) -> Result<()> {
+        let name = HeaderName::from_lua(name)?;
+        let value = HeaderValue::from_lua(value)?;
+        self.append(name, value);
+        Ok(())
+    }
+
+    #[inline]
+    fn remove(&mut self, name: &LuaString) -> Result<()> {
+        let name = HeaderName::from_lua(name)?;
+        self.remove(&name);
+        Ok(())
     }
 }

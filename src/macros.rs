@@ -29,4 +29,18 @@ macro_rules! opt_param {
             }
         }
     };
+
+    ($ty:ty, $table:expr, $name:expr) => {
+        match ($table.as_ref())
+            .map(|t| t.raw_get::<Option<$ty>>($name))
+            .transpose()
+        {
+            Ok(Some(v)) => Ok(v),
+            Ok(None) => Ok(None),
+            Err(err) => {
+                use mlua::ErrorContext as _;
+                Err(err.with_context(|_| format!("invalid `{}`", $name)))
+            }
+        }
+    };
 }
