@@ -21,6 +21,11 @@ async fn run_file(modname: &str) -> Result<()> {
     mlua_stdlib::regex::register(&lua, None)?;
     #[cfg(feature = "http")]
     mlua_stdlib::http::register(&lua, None)?;
+    #[cfg(feature = "net")]
+    {
+        mlua_stdlib::net::register(&lua, None)?;
+        mlua_stdlib::net::tcp::register(&lua, None)?;
+    }
     #[cfg(feature = "task")]
     mlua_stdlib::task::register(&lua, None)?;
 
@@ -89,6 +94,11 @@ include_tests! {
     #[cfg(feature = "http")]
     http {
         headers,
+    },
+
+    #[cfg(feature = "net")]
+    net {
+        tcp,
     },
 
     #[cfg(feature = "task")]

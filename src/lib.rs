@@ -27,3 +27,6 @@ pub mod http;
 
 #[cfg(feature = "task")]
 pub mod task;
+
+#[cfg(feature = "net")]
+pub mod net;
