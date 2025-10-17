@@ -3,12 +3,11 @@ use std::net::SocketAddr;
 use std::ops::Deref;
 
 use mlua::{Result, Table};
-use tokio::net::TcpSocket as TokioTcpSocket;
 
-pub(crate) struct TcpSocket(pub(crate) TokioTcpSocket);
+pub(crate) struct TcpSocket(pub(crate) tokio::net::TcpSocket);
 
 impl Deref for TcpSocket {
-    type Target = TokioTcpSocket;
+    type Target = tokio::net::TcpSocket;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -29,8 +28,8 @@ pub(super) struct SocketOptions {
 impl TcpSocket {
     pub(crate) fn new_for_addr(addr: SocketAddr) -> IoResult<Self> {
         let sock = match addr {
-            SocketAddr::V4(_) => TokioTcpSocket::new_v4()?,
-            SocketAddr::V6(_) => TokioTcpSocket::new_v6()?,
+            SocketAddr::V4(_) => tokio::net::TcpSocket::new_v4()?,
+            SocketAddr::V6(_) => tokio::net::TcpSocket::new_v6()?,
         };
         Ok(TcpSocket(sock))
     }

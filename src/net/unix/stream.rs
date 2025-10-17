@@ -1,22 +1,20 @@
-use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
+use std::path::PathBuf;
 use std::result::Result as StdResult;
 
 use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, UserDataRegistry};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
-use tokio::net::lookup_host;
 
-use super::{SocketOptions, TcpSocket};
 use crate::time::Duration;
 
-pub struct TcpStream {
-    pub(crate) stream: tokio::net::TcpStream,
+pub struct UnixStream {
+    pub(crate) stream: tokio::net::UnixStream,
     pub(crate) read_timeout: Option<Duration>,
     pub(crate) write_timeout: Option<Duration>,
 }
 
-impl Deref for TcpStream {
-    type Target = tokio::net::TcpStream;
+impl Deref for UnixStream {
+    type Target = tokio::net::UnixStream;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -24,16 +22,16 @@ impl Deref for TcpStream {
     }
 }
 
-impl DerefMut for TcpStream {
+impl DerefMut for UnixStream {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stream
     }
 }
 
-impl From<tokio::net::TcpStream> for TcpStream {
-    fn from(stream: tokio::net::TcpStream) -> Self {
-        TcpStream {
+impl From<tokio::net::UnixStream> for UnixStream {
+    fn from(stream: tokio::net::UnixStream) -> Self {
+        UnixStream {
             stream,
             read_timeout: None,
             write_timeout: None,
@@ -41,13 +39,25 @@ impl From<tokio::net::TcpStream> for TcpStream {
     }
 }
 
-impl UserData for TcpStream {
+impl UserData for UnixStream {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_async_function("connect", connect);
 
-        registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?.to_string()));
+        registry.add_method("local_addr", |_, this, ()| {
+            Ok(this.local_addr().map(|addr| {
+                addr.as_pathname()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "(unnamed)".to_string())
+            })?)
+        });
 
-        registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?.to_string()));
+        registry.add_method("peer_addr", |_, this, ()| {
+            Ok(this.peer_addr().map(|addr| {
+                addr.as_pathname()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "(unnamed)".to_string())
+            })?)
+        });
 
         registry.add_method_mut("set_read_timeout", |_, this, dur: Option<Duration>| {
             this.read_timeout = dur;
@@ -101,40 +111,21 @@ impl UserData for TcpStream {
 
 pub async fn connect(
     _: Lua,
-    (addr, params): (String, Option<Table>),
-) -> Result<StdResult<TcpStream, String>> {
-    let addrs = lua_try!(lookup_host(addr).await);
-    let options = SocketOptions::from_table(&params)?;
+    (path, params): (String, Option<Table>),
+) -> Result<StdResult<UnixStream, String>> {
+    let path = PathBuf::from(path);
 
     let timeout = opt_param!(Duration, params, "timeout")?; // A single timeout for any operation
     let connect_timeout = opt_param!(Duration, params, "connect_timeout")?.or(timeout);
     let read_timeout = opt_param!(Duration, params, "read_timeout")?.or(timeout);
     let write_timeout = opt_param!(Duration, params, "write_timeout")?.or(timeout);
 
-    let try_connect = |addr: SocketAddr| async move {
-        let sock = TcpSocket::new_for_addr(addr)?;
-        sock.set_options(options)?;
-        with_io_timeout!(connect_timeout, sock.0.connect(addr))
-    };
+    let stream = with_io_timeout!(connect_timeout, tokio::net::UnixStream::connect(path));
+    let stream = lua_try!(stream);
 
-    let mut last_err = None;
-    for addr in addrs {
-        match try_connect(addr).await {
-            Ok(stream) => {
-                return Ok(Ok(TcpStream {
-                    stream,
-                    read_timeout,
-                    write_timeout,
-                }));
-            }
-            Err(e) => {
-                last_err = Some(e);
-                continue;
-            }
-        }
-    }
-
-    Ok(Err(last_err.map(|err| err.to_string()).unwrap_or_else(|| {
-        "could not resolve to any address".to_string()
-    })))
+    Ok(Ok(UnixStream {
+        stream,
+        read_timeout,
+        write_timeout,
+    }))
 }

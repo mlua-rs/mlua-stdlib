@@ -17,7 +17,7 @@ testing:test("Tcp ping-pong", function(t)
             if data == "ping" then
                 stream:write_all("pong")
             else
-                stream:write_all(string.rep(data, 2))
+                stream:write_all(string.reverse(data))
             end
         end
     end)
@@ -29,7 +29,7 @@ testing:test("Tcp ping-pong", function(t)
     t.assert_eq(response, "pong")
     stream:write_all("hello")
     local response2 = stream:read(100)
-    t.assert_eq(response2, "hellohello")
+    t.assert_eq(response2, "olleh")
     stream:shutdown()
 end)
 

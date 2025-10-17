@@ -25,7 +25,11 @@ async fn run_file(modname: &str) -> Result<()> {
     {
         mlua_stdlib::net::register(&lua, None)?;
         mlua_stdlib::net::tcp::register(&lua, None)?;
+        #[cfg(unix)]
+        mlua_stdlib::net::unix::register(&lua, None)?;
     }
+    #[cfg(feature = "tls")]
+    mlua_stdlib::net::tls::register(&lua, None)?;
     #[cfg(feature = "task")]
     mlua_stdlib::task::register(&lua, None)?;
 
@@ -58,11 +62,12 @@ macro_rules! include_tests {
     () => {};
 
     // Grouped tests
-    ($(#[$meta:meta])? $group:ident { $($item:ident),* $(,)? }, $($rest:tt)*) => {
+    ($(#[$meta:meta])* $group:ident { $($(#[$item_meta:meta])* $item:ident),* $(,)? }, $($rest:tt)*) => {
         $(#[$meta])*
         mod $group {
             use super::*;
             $(
+                $(#[$item_meta])*
                 #[tokio::test]
                 async fn $item() -> Result<()> {
                     run_file(&format!("{}/{}", stringify!($group), stringify!($item))).await
@@ -99,6 +104,8 @@ include_tests! {
     #[cfg(feature = "net")]
     net {
         tcp,
+        #[cfg(unix)]
+        unix,
     },
 
     #[cfg(feature = "task")]

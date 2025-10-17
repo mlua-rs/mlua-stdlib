@@ -14,4 +14,18 @@ pub fn register(lua: &Lua, name: Option<&str>) -> Result<Table> {
     Ok(value)
 }
 
+macro_rules! with_io_timeout {
+    ($timeout:expr, $fut:expr) => {
+        match $timeout {
+            Some(dur) => (tokio::time::timeout(dur.0, $fut).await)
+                .map_err(|e| std::io::Error::new(std::io::ErrorKind::TimedOut, e))
+                .flatten(),
+            None => $fut.await,
+        }
+    };
+}
+
 pub mod tcp;
+
+#[cfg(unix)]
+pub mod unix;
