@@ -5,6 +5,7 @@ use std::result::Result as StdResult;
 use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, UserDataRegistry};
 use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 
+use crate::net::{AddressProvider, AnySocketAddr};
 use crate::time::Duration;
 
 pub struct UnixStream {
@@ -39,25 +40,22 @@ impl From<tokio::net::UnixStream> for UnixStream {
     }
 }
 
+impl AddressProvider for UnixStream {
+    fn local_addr(&self) -> std::io::Result<AnySocketAddr> {
+        self.stream.local_addr().map(AnySocketAddr::Unix)
+    }
+
+    fn peer_addr(&self) -> std::io::Result<AnySocketAddr> {
+        self.stream.peer_addr().map(AnySocketAddr::Unix)
+    }
+}
+
 impl UserData for UnixStream {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_async_function("connect", connect);
 
-        registry.add_method("local_addr", |_, this, ()| {
-            Ok(this.local_addr().map(|addr| {
-                addr.as_pathname()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "(unnamed)".to_string())
-            })?)
-        });
-
-        registry.add_method("peer_addr", |_, this, ()| {
-            Ok(this.peer_addr().map(|addr| {
-                addr.as_pathname()
-                    .map(|p| p.to_string_lossy().to_string())
-                    .unwrap_or_else(|| "(unnamed)".to_string())
-            })?)
-        });
+        registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
+        registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?));
 
         registry.add_method_mut("set_read_timeout", |_, this, dur: Option<Duration>| {
             this.read_timeout = dur;
@@ -111,14 +109,12 @@ impl UserData for UnixStream {
 
 pub async fn connect(
     _: Lua,
-    (path, params): (String, Option<Table>),
+    (path, params): (PathBuf, Option<Table>),
 ) -> Result<StdResult<UnixStream, String>> {
-    let path = PathBuf::from(path);
-
     let timeout = opt_param!(Duration, params, "timeout")?; // A single timeout for any operation
-    let connect_timeout = opt_param!(Duration, params, "connect_timeout")?.or(timeout);
-    let read_timeout = opt_param!(Duration, params, "read_timeout")?.or(timeout);
-    let write_timeout = opt_param!(Duration, params, "write_timeout")?.or(timeout);
+    let connect_timeout = opt_param!(params, "connect_timeout")?.or(timeout);
+    let read_timeout = opt_param!(params, "read_timeout")?.or(timeout);
+    let write_timeout = opt_param!(params, "write_timeout")?.or(timeout);
 
     let stream = with_io_timeout!(connect_timeout, tokio::net::UnixStream::connect(path));
     let stream = lua_try!(stream);

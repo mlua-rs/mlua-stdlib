@@ -5,16 +5,17 @@ local unix = require("@unix")
 testing:test("Unix ping-pong", function(t)
     local socket_path = "/tmp/mlua_test_" .. tostring(os.time()) .. ".sock"
 
-    local listener, err = unix.listen(socket_path, { unlink_on_drop = true })
-    t.assert_ne(listener, nil, err)
+    local listener, listen_err = unix.listen(socket_path, { unlink_on_drop = true })
+    t.assert_ne(listener, nil, listen_err)
 
     -- Accept only one connection
     task.spawn(function()
-        local stream, err2 = listener:accept()
-        t.assert_ne(stream, nil, err2)
+        local stream, accept_err = listener:accept()
+        t.assert_ne(stream, nil, accept_err)
 
         while true do
-            local data = stream:read(100)
+            local data, read_err = stream:read(100)
+            t.assert_ne(data, nil, read_err)
             if data == "ping" then
                 stream:write_all("pong")
             else
@@ -23,14 +24,16 @@ testing:test("Unix ping-pong", function(t)
         end
     end)
 
-    local stream, err3 = unix.connect(socket_path)
-    t.assert_ne(stream, nil, err3)
+    local stream, connect_err = unix.connect(socket_path)
+    t.assert_ne(stream, nil, connect_err)
+
     stream:write_all("ping")
     local response = stream:read(100)
     t.assert_eq(response, "pong")
     stream:write_all("hello")
     local response2 = stream:read(100)
     t.assert_eq(response2, "olleh")
+
     stream:shutdown()
 end)
 
@@ -54,6 +57,7 @@ testing:test("Unix stream with timeouts", function(t)
     end)
 
     local client = unix.connect(socket_path, { read_timeout = "100ms" })
+
     local start = time.instant()
     local ok, err = client:read_to_end()
     local elapsed = start:elapsed():as_secs()

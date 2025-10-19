@@ -104,6 +104,8 @@ include_tests! {
     #[cfg(feature = "net")]
     net {
         tcp,
+        #[cfg(feature = "tls")]
+        tls,
         #[cfg(unix)]
         unix,
     },

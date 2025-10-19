@@ -1,6 +1,3 @@
-mod listener;
-mod stream;
-
 pub use listener::{UnixListener, listen};
 pub use stream::{UnixStream, connect};
 
@@ -17,3 +14,6 @@ pub fn register(lua: &Lua, name: Option<&str>) -> Result<Table> {
     lua.register_module(name, &t)?;
     Ok(t)
 }
+
+mod listener;
+mod stream;

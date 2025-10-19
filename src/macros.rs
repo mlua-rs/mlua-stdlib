@@ -25,7 +25,7 @@ macro_rules! opt_param {
             Ok(None) => Ok(None),
             Err(err) => {
                 use mlua::ErrorContext as _;
-                Err(err.with_context(|_| format!("invalid `{}`", $name)))
+                Err(err.with_context(|_| format!("invalid `{}` param", $name)))
             }
         }
     };
@@ -39,7 +39,20 @@ macro_rules! opt_param {
             Ok(None) => Ok(None),
             Err(err) => {
                 use mlua::ErrorContext as _;
-                Err(err.with_context(|_| format!("invalid `{}`", $name)))
+                Err(err.with_context(|_| format!("invalid `{}` param", $name)))
+            }
+        }
+    };
+}
+
+macro_rules! param {
+    ($table:expr, $name:expr) => {
+        match $table.raw_get::<Option<_>>($name) {
+            Ok(Some(v)) => Ok(v),
+            Ok(None) => Err(mlua::Error::runtime(format!("`{}` param is required", $name))),
+            Err(err) => {
+                use mlua::ErrorContext as _;
+                Err(err.with_context(|_| format!("invalid `{}` param", $name)))
             }
         }
     };

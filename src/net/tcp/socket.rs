@@ -1,4 +1,4 @@
-use std::io::Result as IoResult;
+use std::io;
 use std::net::SocketAddr;
 use std::ops::Deref;
 
@@ -26,7 +26,7 @@ pub(super) struct SocketOptions {
 }
 
 impl TcpSocket {
-    pub(crate) fn new_for_addr(addr: SocketAddr) -> IoResult<Self> {
+    pub(crate) fn new_for_addr(addr: SocketAddr) -> io::Result<Self> {
         let sock = match addr {
             SocketAddr::V4(_) => tokio::net::TcpSocket::new_v4()?,
             SocketAddr::V6(_) => tokio::net::TcpSocket::new_v6()?,
@@ -34,7 +34,7 @@ impl TcpSocket {
         Ok(TcpSocket(sock))
     }
 
-    pub(crate) fn set_options(&self, options: SocketOptions) -> IoResult<()> {
+    pub(crate) fn set_options(&self, options: SocketOptions) -> io::Result<()> {
         if let Some(keepalive) = options.keepalive {
             self.set_keepalive(keepalive)?;
         }

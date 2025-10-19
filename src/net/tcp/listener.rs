@@ -6,12 +6,19 @@ use mlua::{Lua, Result, Table, UserData, UserDataMethods, UserDataRegistry};
 use tokio::net::lookup_host;
 
 use super::{SocketOptions, TcpSocket, TcpStream};
+use crate::net::common::AnySocketAddr;
 
-pub struct TcpListener(tokio::net::TcpListener);
+pub struct TcpListener(pub(crate) tokio::net::TcpListener);
+
+impl TcpListener {
+    pub(crate) fn local_addr(&self) -> io::Result<AnySocketAddr> {
+        self.0.local_addr().map(AnySocketAddr::Tcp)
+    }
+}
 
 impl UserData for TcpListener {
     fn register(registry: &mut UserDataRegistry<Self>) {
-        registry.add_method("local_addr", |_, this, ()| Ok(this.0.local_addr()?.to_string()));
+        registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
 
         registry.add_async_function("listen", listen);
 
@@ -24,9 +31,10 @@ impl UserData for TcpListener {
 
 pub async fn listen(
     _: Lua,
-    (addr, params): (String, Option<Table>),
+    (addr, port, params): (String, Option<u16>, Option<Table>),
 ) -> Result<StdResult<TcpListener, String>> {
-    let addrs = lua_try!(lookup_host(addr).await);
+    let port = port.unwrap_or(0);
+    let addrs = lua_try!(lookup_host((addr, port)).await);
 
     let sock_options = SocketOptions::from_table(&params)?;
     let backlog = opt_param!(params, "backlog")?;

@@ -1,3 +1,4 @@
+use std::io;
 use std::net::SocketAddr;
 use std::ops::{Deref, DerefMut};
 use std::result::Result as StdResult;
@@ -7,10 +8,12 @@ use tokio::io::{AsyncReadExt as _, AsyncWriteExt as _};
 use tokio::net::lookup_host;
 
 use super::{SocketOptions, TcpSocket};
+use crate::net::{AddressProvider, AnySocketAddr};
 use crate::time::Duration;
 
 pub struct TcpStream {
     pub(crate) stream: tokio::net::TcpStream,
+    pub(crate) host: Option<String>,
     pub(crate) read_timeout: Option<Duration>,
     pub(crate) write_timeout: Option<Duration>,
 }
@@ -35,9 +38,20 @@ impl From<tokio::net::TcpStream> for TcpStream {
     fn from(stream: tokio::net::TcpStream) -> Self {
         TcpStream {
             stream,
+            host: None,
             read_timeout: None,
             write_timeout: None,
         }
+    }
+}
+
+impl AddressProvider for TcpStream {
+    fn local_addr(&self) -> io::Result<AnySocketAddr> {
+        self.stream.local_addr().map(AnySocketAddr::Tcp)
+    }
+
+    fn peer_addr(&self) -> io::Result<AnySocketAddr> {
+        self.stream.peer_addr().map(AnySocketAddr::Tcp)
     }
 }
 
@@ -45,9 +59,8 @@ impl UserData for TcpStream {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_async_function("connect", connect);
 
-        registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?.to_string()));
-
-        registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?.to_string()));
+        registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
+        registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?));
 
         registry.add_method_mut("set_read_timeout", |_, this, dur: Option<Duration>| {
             this.read_timeout = dur;
@@ -101,9 +114,9 @@ impl UserData for TcpStream {
 
 pub async fn connect(
     _: Lua,
-    (addr, params): (String, Option<Table>),
+    (host, port, params): (String, u16, Option<Table>),
 ) -> Result<StdResult<TcpStream, String>> {
-    let addrs = lua_try!(lookup_host(addr).await);
+    let addrs = lua_try!(lookup_host((&*host, port)).await);
     let options = SocketOptions::from_table(&params)?;
 
     let timeout = opt_param!(Duration, params, "timeout")?; // A single timeout for any operation
@@ -123,6 +136,7 @@ pub async fn connect(
             Ok(stream) => {
                 return Ok(Ok(TcpStream {
                     stream,
+                    host: Some(host.clone()),
                     read_timeout,
                     write_timeout,
                 }));

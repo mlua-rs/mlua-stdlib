@@ -1,5 +1,7 @@
 use mlua::{Lua, Result, Table};
 
+pub use common::{AddressProvider, AnySocketAddr};
+
 /// A loader for the `net` module.
 fn loader(lua: &Lua) -> Result<Table> {
     let t = lua.create_table()?;
@@ -25,7 +27,10 @@ macro_rules! with_io_timeout {
     };
 }
 
-pub mod tcp;
+mod common;
 
+pub mod tcp;
+#[cfg(feature = "tls")]
+pub mod tls;
 #[cfg(unix)]
 pub mod unix;
