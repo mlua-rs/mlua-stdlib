@@ -18,6 +18,13 @@ With the following optional modules:
 - **json** (feature) - JSON encoding/decoding
 - **regex** (feature) - Regular expressions support
 - **yaml** (feature) - YAML encoding/decoding
+- **http** (feature) - HTTP client and server utilities
+- **task** (feature) - Async task management and execution
+- **net** (feature) - Networking support
+  - **tcp** - TCP client and server sockets
+  - **udp** - UDP sockets for connectionless communication
+  - **unix** - Unix domain sockets (Unix platforms only)
+- **tls** (feature) - TLS/SSL support for secure connections
 
 The following feature flags are passed to `mlua`, when enabled:
 
