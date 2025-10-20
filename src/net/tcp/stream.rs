@@ -47,11 +47,11 @@ impl From<tokio::net::TcpStream> for TcpStream {
 
 impl AddressProvider for TcpStream {
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
-        self.stream.local_addr().map(AnySocketAddr::Tcp)
+        self.stream.local_addr().map(AnySocketAddr::IP)
     }
 
     fn peer_addr(&self) -> io::Result<AnySocketAddr> {
-        self.stream.peer_addr().map(AnySocketAddr::Tcp)
+        self.stream.peer_addr().map(AnySocketAddr::IP)
     }
 }
 

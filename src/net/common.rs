@@ -7,7 +7,7 @@ use mlua::{IntoLua, Lua, Result, Value};
 
 /// Socket address that can be either TCP or Unix domain socket.
 pub enum AnySocketAddr {
-    Tcp(std::net::SocketAddr),
+    IP(std::net::SocketAddr),
     #[cfg(unix)]
     Unix(tokio::net::unix::SocketAddr),
 }
@@ -15,7 +15,7 @@ pub enum AnySocketAddr {
 impl fmt::Display for AnySocketAddr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            AnySocketAddr::Tcp(addr) => write!(f, "{addr}"),
+            AnySocketAddr::IP(addr) => write!(f, "{addr}"),
             #[cfg(unix)]
             AnySocketAddr::Unix(addr) => {
                 let path = addr
@@ -42,11 +42,11 @@ pub trait AddressProvider {
 
 impl AddressProvider for tokio::net::TcpStream {
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
-        Ok(AnySocketAddr::Tcp(self.local_addr()?))
+        Ok(AnySocketAddr::IP(self.local_addr()?))
     }
 
     fn peer_addr(&self) -> io::Result<AnySocketAddr> {
-        Ok(AnySocketAddr::Tcp(self.peer_addr()?))
+        Ok(AnySocketAddr::IP(self.peer_addr()?))
     }
 }
 

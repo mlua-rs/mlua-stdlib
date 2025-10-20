@@ -32,5 +32,6 @@ mod common;
 pub mod tcp;
 #[cfg(feature = "tls")]
 pub mod tls;
+pub mod udp;
 #[cfg(unix)]
 pub mod unix;

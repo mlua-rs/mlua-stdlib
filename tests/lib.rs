@@ -25,6 +25,7 @@ async fn run_file(modname: &str) -> Result<()> {
     {
         mlua_stdlib::net::register(&lua, None)?;
         mlua_stdlib::net::tcp::register(&lua, None)?;
+        mlua_stdlib::net::udp::register(&lua, None)?;
         #[cfg(unix)]
         mlua_stdlib::net::unix::register(&lua, None)?;
     }
@@ -104,6 +105,7 @@ include_tests! {
     #[cfg(feature = "net")]
     net {
         tcp,
+        udp,
         #[cfg(feature = "tls")]
         tls,
         #[cfg(unix)]

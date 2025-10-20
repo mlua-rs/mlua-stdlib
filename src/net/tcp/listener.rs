@@ -12,7 +12,7 @@ pub struct TcpListener(pub(crate) tokio::net::TcpListener);
 
 impl TcpListener {
     pub(crate) fn local_addr(&self) -> io::Result<AnySocketAddr> {
-        self.0.local_addr().map(AnySocketAddr::Tcp)
+        self.0.local_addr().map(AnySocketAddr::IP)
     }
 }
 
