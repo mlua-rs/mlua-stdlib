@@ -11,6 +11,7 @@ use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::{RootCertStore, ServerConfig};
 
 use super::stream::TlsStream;
+use crate::net::common::{Accept, AddressProvider, AnySocketAddr};
 use crate::net::tcp::{TcpListener, TcpStream};
 #[cfg(unix)]
 use crate::net::unix::{UnixListener, UnixStream};
@@ -158,32 +159,39 @@ impl<L> TlsListener<L> {
     }
 }
 
-impl UserData for TlsListener<TcpListener> {
-    fn register(registry: &mut UserDataRegistry<Self>) {
-        registry.add_async_method("accept", |lua, this, ()| async move {
-            // Accept the plain TCP stream from the inner tokio listener
-            let (stream, _) = lua_try!(this.inner.0.accept().await);
-            // Upgrade to TLS
-            let tls_stream = lua_try!(TlsStream::new_server(stream, this.config.clone()).await);
-            Ok(Ok(lua.create_userdata(tls_stream)?))
-        });
+impl<L> Accept for TlsListener<L>
+where
+    L: Accept + 'static,
+    L::Stream: AddressProvider,
+{
+    type Stream = TlsStream<L::Stream>;
 
-        registry.add_method("local_addr", |_, this, ()| Ok(this.inner.local_addr()?));
+    fn local_addr(&self) -> io::Result<AnySocketAddr> {
+        self.inner.local_addr()
+    }
+
+    async fn accept(&self) -> io::Result<(Self::Stream, AnySocketAddr)> {
+        let (stream, addr) = self.inner.accept().await?;
+        let tls_stream = TlsStream::new_server(stream, self.config.clone()).await?;
+        Ok((tls_stream, addr))
     }
 }
 
-#[cfg(unix)]
-impl UserData for TlsListener<UnixListener> {
+impl<L> UserData for TlsListener<L>
+where
+    L: Accept + 'static,
+    L::Stream: AddressProvider,
+{
     fn register(registry: &mut UserDataRegistry<Self>) {
+        registry.add_method("local_addr", |_, this, ()| Ok(this.inner.local_addr()?));
+
         registry.add_async_method("accept", |lua, this, ()| async move {
-            // Accept the plain Unix stream from the inner tokio listener
-            let (stream, _) = lua_try!(this.inner.listener.accept().await);
+            // Accept the plain TCP stream from the inner tokio listener
+            let (stream, _) = lua_try!(this.inner.accept().await);
             // Upgrade to TLS
             let tls_stream = lua_try!(TlsStream::new_server(stream, this.config.clone()).await);
             Ok(Ok(lua.create_userdata(tls_stream)?))
         });
-
-        registry.add_method("local_addr", |_, this, ()| Ok(this.inner.local_addr()?));
     }
 }
 

@@ -1,8 +1,10 @@
 use std::io;
+use std::pin::Pin;
+use std::task::{Context, Poll};
 
 use mlua::{MaybeSend, String as LuaString, UserData, UserDataMethods, UserDataRegistry};
 use rustls::pki_types::ServerName;
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio_rustls::{TlsAcceptor, TlsConnector};
 
 use super::client::TlsClientConfig;
@@ -65,23 +67,66 @@ where
     }
 
     /// Get a reference to the underlying stream
-    fn get_ref(&self) -> &S {
+    pub fn get_ref(&self) -> &S {
         self.inner.get_ref().0
     }
 
     /// Get a mutable reference to the underlying stream
-    fn get_mut(&mut self) -> &mut S {
+    pub fn get_mut(&mut self) -> &mut S {
         self.inner.get_mut().0
+    }
+}
+
+impl<S> AsyncRead for TlsStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    #[inline]
+    fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().inner).poll_read(cx, buf)
+    }
+}
+
+impl<S> AsyncWrite for TlsStream<S>
+where
+    S: AsyncRead + AsyncWrite + Unpin,
+{
+    #[inline]
+    fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        Pin::new(&mut self.get_mut().inner).poll_write(cx, buf)
+    }
+
+    #[inline]
+    fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().inner).poll_flush(cx)
+    }
+
+    #[inline]
+    fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        Pin::new(&mut self.get_mut().inner).poll_shutdown(cx)
+    }
+}
+
+impl<S> AddressProvider for TlsStream<S>
+where
+    S: AsyncRead + AsyncWrite + AddressProvider + Unpin,
+{
+    fn local_addr(&self) -> std::io::Result<crate::net::AnySocketAddr> {
+        self.get_ref().local_addr()
+    }
+
+    fn peer_addr(&self) -> std::io::Result<crate::net::AnySocketAddr> {
+        self.get_ref().peer_addr()
     }
 }
 
 impl<S> UserData for TlsStream<S>
 where
-    S: AsyncRead + AsyncWrite + Unpin + AddressProvider + MaybeSend + 'static,
+    S: AsyncRead + AsyncWrite + AddressProvider + Unpin + MaybeSend + 'static,
 {
     fn register(registry: &mut UserDataRegistry<Self>) {
-        registry.add_method("local_addr", |_, this, ()| Ok(this.get_ref().local_addr()?));
-        registry.add_method("peer_addr", |_, this, ()| Ok(this.get_ref().peer_addr()?));
+        registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
+        registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?));
 
         registry.add_method_mut("set_read_timeout", |_, this, dur: Option<Duration>| {
             this.read_timeout = dur;

@@ -12,9 +12,9 @@ use rustls::pki_types::{CertificateDer, DnsName, ServerName, UnixTime};
 use rustls::{ClientConfig, DigitallySignedStruct, RootCertStore, SignatureScheme};
 
 use super::stream::TlsStream;
-use crate::net::tcp::TcpStream;
 #[cfg(unix)]
 use crate::net::unix::UnixStream;
+use crate::net::{AnyStream, TcpStream};
 
 /// TLS configuration options for client connections
 #[derive(Debug, Clone)]
@@ -222,9 +222,9 @@ static DEFAULT_TLS_CLIENT_CONFIG: LazyLock<TlsClientConfig> =
 
 /// Wrap a stream with TLS (client-side).
 pub async fn wrap_stream(
-    lua: Lua,
+    _lua: Lua,
     (stream, server_name, config): (AnyUserData, Option<String>, Option<TlsClientConfig>),
-) -> LuaResult<StdResult<AnyUserData, String>> {
+) -> LuaResult<StdResult<AnyStream, String>> {
     let server_name = server_name.and_then(|name| ServerName::try_from(name).ok());
     let config = config.unwrap_or_else(|| DEFAULT_TLS_CLIENT_CONFIG.clone());
 
@@ -236,11 +236,11 @@ pub async fn wrap_stream(
                 .or_else(|| host.and_then(|host| ServerName::try_from(host).ok()))
                 .or_else(|| stream.peer_addr().map(|addr| ServerName::from(addr.ip())).ok())
                 .unwrap_or_else(default_server_name);
-            match TlsStream::new_client(stream, server_name, config).await {
+            match TlsStream::new_client(stream.into(), server_name, config).await {
                 Ok(mut tls_stream) => {
                     tls_stream.set_read_timeout(read_timeout);
                     tls_stream.set_write_timeout(write_timeout);
-                    Ok(Ok(lua.create_userdata(tls_stream)?))
+                    Ok(Ok(AnyStream::TcpTls(tls_stream)))
                 }
                 Err(e) => Ok(Err(e.to_string())),
             }
@@ -250,11 +250,11 @@ pub async fn wrap_stream(
             #[rustfmt::skip]
             let UnixStream { stream, read_timeout, write_timeout } = stream.take::<UnixStream>()?;
             let server_name = server_name.unwrap_or_else(default_server_name);
-            match TlsStream::new_client(stream, server_name, config).await {
+            match TlsStream::new_client(stream.into(), server_name, config).await {
                 Ok(mut tls_stream) => {
                     tls_stream.set_read_timeout(read_timeout);
                     tls_stream.set_write_timeout(write_timeout);
-                    Ok(Ok(lua.create_userdata(tls_stream)?))
+                    Ok(Ok(AnyStream::UnixTls(tls_stream)))
                 }
                 Err(e) => Ok(Err(e.to_string())),
             }

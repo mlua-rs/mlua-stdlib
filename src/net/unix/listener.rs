@@ -6,7 +6,7 @@ use std::sync::Arc;
 use mlua::{Lua, Result, Table, UserData, UserDataMethods, UserDataRegistry};
 
 use super::UnixStream;
-use crate::net::AnySocketAddr;
+use crate::net::common::{Accept, AnySocketAddr};
 
 pub struct UnixListener {
     pub(crate) listener: tokio::net::UnixListener,
@@ -24,9 +24,18 @@ impl Drop for UnixListener {
     }
 }
 
-impl UnixListener {
-    pub(crate) fn local_addr(&self) -> io::Result<AnySocketAddr> {
+impl Accept for UnixListener {
+    type Stream = UnixStream;
+
+    fn local_addr(&self) -> io::Result<AnySocketAddr> {
         self.listener.local_addr().map(AnySocketAddr::Unix)
+    }
+
+    async fn accept(&self) -> io::Result<(Self::Stream, AnySocketAddr)> {
+        let (stream, addr) = self.listener.accept().await?;
+        let io = UnixStream::from(stream);
+        let addr = AnySocketAddr::Unix(addr);
+        Ok((io, addr))
     }
 }
 

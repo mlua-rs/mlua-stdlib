@@ -6,13 +6,22 @@ use mlua::{Lua, Result, Table, UserData, UserDataMethods, UserDataRegistry};
 use tokio::net::lookup_host;
 
 use super::{SocketOptions, TcpSocket, TcpStream};
-use crate::net::common::AnySocketAddr;
+use crate::net::common::{Accept, AnySocketAddr};
 
 pub struct TcpListener(pub(crate) tokio::net::TcpListener);
 
-impl TcpListener {
-    pub(crate) fn local_addr(&self) -> io::Result<AnySocketAddr> {
+impl Accept for TcpListener {
+    type Stream = TcpStream;
+
+    fn local_addr(&self) -> io::Result<AnySocketAddr> {
         self.0.local_addr().map(AnySocketAddr::IP)
+    }
+
+    async fn accept(&self) -> io::Result<(Self::Stream, AnySocketAddr)> {
+        let (stream, addr) = self.0.accept().await?;
+        let io = TcpStream::from(stream);
+        let addr = AnySocketAddr::IP(addr);
+        Ok((io, addr))
     }
 }
 
