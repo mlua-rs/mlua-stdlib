@@ -13,21 +13,22 @@ lua52 = ["mlua/lua52"]
 lua53 = ["mlua/lua53"]
 lua54 = ["mlua/lua54"]
 luau = ["mlua/luau"]
-async = ["mlua/async", "dep:tokio", "dep:tokio-util"]
+async = ["mlua/async", "dep:tokio", "dep:tokio-util", "dep:futures-util"]
 send = ["mlua/send"]
 vendored = ["mlua/vendored"]
 
-json = ["mlua/serde", "dep:ouroboros", "dep:serde", "dep:serde_json"]
+json = ["mlua/serde", "dep:ouroboros", "dep:serde", "dep:serde_json", "reqwest?/json"]
 regex = ["dep:regex", "dep:ouroboros", "dep:quick_cache"]
 yaml = ["mlua/serde", "dep:ouroboros", "dep:serde", "dep:serde_yaml"]
-http = ["dep:http", "dep:http-serde-ext"]
-task = ["async"]
+http = ["dep:http", "dep:http-body", "dep:http-serde-ext", "dep:http-body-util", "dep:hyper", "dep:hyper-util", "net", "task"]
+reqwest = ["http", "async", "dep:reqwest"]
 net = ["task"]
+task = ["async"]
 tls = ["net", "dep:rustls", "dep:tokio-rustls", "dep:rustls-pemfile", "dep:rustls-native-certs", "dep:webpki-roots"]
 
 [dependencies]
 bytes = "1"
-mlua = { version = "0.11", features = ["error-send", "macros"] }
+mlua = { version = "0.11.5", features = ["error-send", "macros"] }
 ouroboros = { version = "0.18", optional = true }
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
@@ -35,10 +36,19 @@ serde_yaml = { version = "0.9", optional = true }
 owo-colors = "4"
 regex = { version = "1.0", optional = true }
 quick_cache = { version = "0.6", optional = true }
+futures-util = { version = "0.3", optional = true }
+parking_lot = "0.12"
 
 # http
 http = { version = "1.3", optional = true }
 http-serde-ext = { version = "1.0", optional = true }
+http-body = { version = "1.0", optional = true }
+http-body-util = { version = "0.1", optional = true }
+hyper = { version = "1.5", optional = true, features = ["http1", "http2", "server"] }
+hyper-util = { version = "0.1", optional = true, features = ["tokio", "server", "server-auto", "server-graceful"] }
+
+# reqwest
+reqwest = { version = "0.12", features = ["cookies", "gzip", "brotli", "multipart", "stream"], optional = true }
 
 # tokio
 tokio = { version = "1", features = ["full"], optional = true }

@@ -1,8 +1,8 @@
 use std::ops::Deref;
 
-use mlua::{BorrowedBytes, Error, FromLua, Lua, Result, String as LuaString, UserData, UserDataRef, Value};
-
-use crate::types::MaybeSend;
+use mlua::{
+    BorrowedBytes, Error, FromLua, Lua, MaybeSend, Result, String as LuaString, UserData, UserDataRef, Value,
+};
 
 /// A wrapper around a byte slice that can be passed to Lua as userdata.
 #[cfg(not(feature = "send"))]

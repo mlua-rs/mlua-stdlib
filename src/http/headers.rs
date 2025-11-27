@@ -4,14 +4,15 @@ use mlua::{
     UserData, UserDataMethods, Value,
 };
 
-#[derive(Clone)]
-pub(crate) struct Headers(pub(crate) HeaderMap);
+/// A Lua userdata wrapper around [`http::HeaderMap`].
+#[derive(Clone, Default, Debug)]
+pub struct LuaHeaders(pub HeaderMap);
 
-impl UserData for Headers {
+impl UserData for LuaHeaders {
     fn register(registry: &mut mlua::UserDataRegistry<Self>) {
         registry.add_function("new", |lua, arg: Option<Table>| match arg {
-            None => Ok(Headers(HeaderMap::new())),
-            Some(t) => Headers::from_lua(Value::Table(t), lua),
+            None => Ok(LuaHeaders(HeaderMap::new())),
+            Some(t) => LuaHeaders::from_lua(Value::Table(t), lua),
         });
 
         registry.add_method("get", |lua, this, name: LuaString| {
@@ -51,7 +52,7 @@ impl UserData for Headers {
                 .collect::<Result<Vec<_>>>()
         });
 
-        registry.add_method("clone", |_, this, ()| Ok(Headers(this.0.clone())));
+        registry.add_method("clone", |_, this, ()| Ok(LuaHeaders(this.0.clone())));
 
         // Convert headers map to a Lua table
         registry.add_method("to_table", |lua, this, ()| {
@@ -135,7 +136,7 @@ impl UserData for Headers {
     }
 }
 
-impl FromLua for Headers {
+impl FromLua for LuaHeaders {
     fn from_lua(value: Value, lua: &Lua) -> Result<Self> {
         match value {
             Value::Table(table) => {
@@ -153,7 +154,7 @@ impl FromLua for Headers {
                     }
                     Ok(())
                 })?;
-                Ok(Headers(headers))
+                Ok(LuaHeaders(headers))
             }
             Value::UserData(ud) if ud.is::<Self>() => ud.borrow::<Self>().map(|hdrs| hdrs.clone()),
             val => {

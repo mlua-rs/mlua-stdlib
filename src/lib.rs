@@ -4,7 +4,6 @@ pub(crate) const METAMETHOD_ITER: &str = if cfg!(feature = "luau") { "__iter" } 
 
 #[macro_use]
 mod macros;
-mod types;
 mod util;
 
 pub(crate) mod terminal;
@@ -24,6 +23,9 @@ pub mod yaml;
 
 #[cfg(feature = "http")]
 pub mod http;
+
+#[cfg(feature = "reqwest")]
+pub mod reqwest;
 
 #[cfg(feature = "task")]
 pub mod task;
