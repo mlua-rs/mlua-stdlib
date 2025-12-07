@@ -1,7 +1,7 @@
 use mlua::{Lua, Result, Table};
 
 pub use common::{AddressProvider, AnyListener, AnySocketAddr, AnyStream};
-pub use tcp::{TcpListener, TcpStream};
+pub use tcp::{LuaTcpListener, LuaTcpStream};
 
 /// A loader for the `net` module.
 fn loader(lua: &Lua) -> Result<Table> {

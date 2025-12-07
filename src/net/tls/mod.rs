@@ -2,8 +2,8 @@
 
 use mlua::{Result, Table};
 
-pub use server::TlsListener;
-pub use stream::TlsStream;
+pub use server::LuaTlsListener;
+pub use stream::LuaTlsStream;
 
 /// Registers the `tls` module in the given Lua state.
 pub fn register(lua: &mlua::Lua, name: Option<&str>) -> Result<Table> {

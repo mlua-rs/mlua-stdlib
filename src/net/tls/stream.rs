@@ -5,7 +5,7 @@ use std::task::{Context, Poll};
 use mlua::{MaybeSend, String as LuaString, UserData, UserDataMethods, UserDataRegistry};
 use rustls::pki_types::ServerName;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
-use tokio_rustls::{TlsAcceptor, TlsConnector};
+use tokio_rustls::{TlsAcceptor, TlsConnector, TlsStream};
 
 use super::client::TlsClientConfig;
 use super::server::TlsServerConfig;
@@ -16,13 +16,13 @@ use crate::time::Duration;
 ///
 /// This type wraps a TLS stream and provides read/write methods.
 /// It consumes the underlying stream to prevent further use of the plain stream.
-pub struct TlsStream<S> {
-    inner: tokio_rustls::TlsStream<S>,
+pub struct LuaTlsStream<S> {
+    inner: TlsStream<S>,
     read_timeout: Option<Duration>,
     write_timeout: Option<Duration>,
 }
 
-impl<S> TlsStream<S>
+impl<S> LuaTlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -35,9 +35,9 @@ where
         let tls_stream = TlsConnector::from(config.0)
             .connect(domain, stream)
             .await
-            .map(tokio_rustls::TlsStream::Client)?;
+            .map(TlsStream::Client)?;
 
-        Ok(TlsStream {
+        Ok(LuaTlsStream {
             inner: tls_stream,
             read_timeout: None,
             write_timeout: None,
@@ -49,9 +49,9 @@ where
         let tls_stream = TlsAcceptor::from(config.0)
             .accept(stream)
             .await
-            .map(tokio_rustls::TlsStream::Server)?;
+            .map(TlsStream::Server)?;
 
-        Ok(TlsStream {
+        Ok(LuaTlsStream {
             inner: tls_stream,
             read_timeout: None,
             write_timeout: None,
@@ -77,7 +77,7 @@ where
     }
 }
 
-impl<S> AsyncRead for TlsStream<S>
+impl<S> AsyncRead for LuaTlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -87,7 +87,7 @@ where
     }
 }
 
-impl<S> AsyncWrite for TlsStream<S>
+impl<S> AsyncWrite for LuaTlsStream<S>
 where
     S: AsyncRead + AsyncWrite + Unpin,
 {
@@ -107,20 +107,20 @@ where
     }
 }
 
-impl<S> AddressProvider for TlsStream<S>
+impl<S> AddressProvider for LuaTlsStream<S>
 where
     S: AsyncRead + AsyncWrite + AddressProvider + Unpin,
 {
-    fn local_addr(&self) -> std::io::Result<crate::net::AnySocketAddr> {
+    fn local_addr(&self) -> io::Result<crate::net::AnySocketAddr> {
         self.get_ref().local_addr()
     }
 
-    fn peer_addr(&self) -> std::io::Result<crate::net::AnySocketAddr> {
+    fn peer_addr(&self) -> io::Result<crate::net::AnySocketAddr> {
         self.get_ref().peer_addr()
     }
 }
 
-impl<S> UserData for TlsStream<S>
+impl<S> UserData for LuaTlsStream<S>
 where
     S: AsyncRead + AsyncWrite + AddressProvider + Unpin + MaybeSend + 'static,
 {

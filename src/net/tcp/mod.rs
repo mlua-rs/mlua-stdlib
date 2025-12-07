@@ -1,15 +1,15 @@
 use mlua::{Lua, Result, Table};
 
-pub use listener::{TcpListener, listen};
-pub use stream::{TcpStream, connect};
+pub use listener::{LuaTcpListener, listen};
+pub use stream::{LuaTcpStream, connect};
 
-use socket::{SocketOptions, TcpSocket};
+use socket::{SocketOptions, LuaTcpSocket};
 
 /// A loader for the `net/tcp` module.
 fn loader(lua: &Lua) -> Result<Table> {
     let t = lua.create_table()?;
-    t.set("TcpListener", lua.create_proxy::<TcpListener>()?)?;
-    t.set("TcpStream", lua.create_proxy::<TcpStream>()?)?;
+    t.set("TcpListener", lua.create_proxy::<LuaTcpListener>()?)?;
+    t.set("TcpStream", lua.create_proxy::<LuaTcpStream>()?)?;
     t.set("listen", lua.create_async_function(listen)?)?;
     t.set("connect", lua.create_async_function(connect)?)?;
     Ok(t)

@@ -8,12 +8,15 @@ use std::{fmt, io};
 
 use mlua::{AnyUserData, Error, FromLua, IntoLua, Lua, MaybeSend, Result, Value};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-
-use super::tcp::{TcpListener, TcpStream};
-#[cfg(feature = "tls")]
-use super::tls::{TlsListener, TlsStream};
+use tokio::net::TcpStream;
 #[cfg(unix)]
-use super::unix::{UnixListener, UnixStream};
+use tokio::net::UnixStream;
+
+use super::tcp::{LuaTcpListener, LuaTcpStream};
+#[cfg(feature = "tls")]
+use super::tls::{LuaTlsListener, LuaTlsStream};
+#[cfg(unix)]
+use super::unix::{LuaUnixListener, LuaUnixStream};
 
 /// Socket address that can be either TCP or Unix domain socket.
 pub enum AnySocketAddr {
@@ -50,7 +53,7 @@ pub trait AddressProvider {
     fn peer_addr(&self) -> io::Result<AnySocketAddr>;
 }
 
-impl AddressProvider for tokio::net::TcpStream {
+impl AddressProvider for TcpStream {
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
         Ok(AnySocketAddr::IP(self.local_addr()?))
     }
@@ -61,7 +64,7 @@ impl AddressProvider for tokio::net::TcpStream {
 }
 
 #[cfg(unix)]
-impl AddressProvider for tokio::net::UnixStream {
+impl AddressProvider for UnixStream {
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
         Ok(AnySocketAddr::Unix(self.local_addr()?))
     }
@@ -73,13 +76,13 @@ impl AddressProvider for tokio::net::UnixStream {
 
 /// A stream that can be either TCP or Unix domain socket, possibly wrapped in TLS.
 pub enum AnyStream {
-    Tcp(TcpStream),
+    Tcp(LuaTcpStream),
     #[cfg(unix)]
-    Unix(UnixStream),
+    Unix(LuaUnixStream),
     #[cfg(feature = "tls")]
-    TcpTls(TlsStream<TcpStream>),
+    TcpTls(LuaTlsStream<LuaTcpStream>),
     #[cfg(all(unix, feature = "tls"))]
-    UnixTls(TlsStream<UnixStream>),
+    UnixTls(LuaTlsStream<LuaUnixStream>),
 }
 
 impl AsyncRead for AnyStream {
@@ -152,23 +155,23 @@ impl FromLua for AnyStream {
     fn from_lua(value: Value, lua: &Lua) -> Result<Self> {
         let value = lua.unpack::<AnyUserData>(value)?;
         match value.type_id() {
-            Some(id) if id == TypeId::of::<TcpStream>() => {
-                let stream = value.take::<TcpStream>()?;
+            Some(id) if id == TypeId::of::<LuaTcpStream>() => {
+                let stream = value.take::<LuaTcpStream>()?;
                 Ok(AnyStream::Tcp(stream))
             }
             #[cfg(unix)]
-            Some(id) if id == TypeId::of::<UnixStream>() => {
-                let stream = value.take::<UnixStream>()?;
+            Some(id) if id == TypeId::of::<LuaUnixStream>() => {
+                let stream = value.take::<LuaUnixStream>()?;
                 Ok(AnyStream::Unix(stream))
             }
             #[cfg(feature = "tls")]
-            Some(id) if id == TypeId::of::<TlsStream<TcpStream>>() => {
-                let stream = value.take::<TlsStream<TcpStream>>()?;
+            Some(id) if id == TypeId::of::<LuaTlsStream<LuaTcpStream>>() => {
+                let stream = value.take::<LuaTlsStream<LuaTcpStream>>()?;
                 Ok(AnyStream::TcpTls(stream))
             }
             #[cfg(all(unix, feature = "tls"))]
-            Some(id) if id == TypeId::of::<TlsStream<UnixStream>>() => {
-                let stream = value.take::<TlsStream<UnixStream>>()?;
+            Some(id) if id == TypeId::of::<LuaTlsStream<LuaUnixStream>>() => {
+                let stream = value.take::<LuaTlsStream<LuaUnixStream>>()?;
                 Ok(AnyStream::UnixTls(stream))
             }
             _ => {
@@ -186,13 +189,13 @@ impl FromLua for AnyStream {
 
 /// A listener that can be either TCP or Unix domain socket, possibly wrapped in TLS.
 pub enum AnyListener {
-    Tcp(TcpListener),
+    Tcp(LuaTcpListener),
     #[cfg(unix)]
-    Unix(UnixListener),
+    Unix(LuaUnixListener),
     #[cfg(feature = "tls")]
-    TcpTls(TlsListener<TcpListener>),
+    TcpTls(LuaTlsListener<LuaTcpListener>),
     #[cfg(all(unix, feature = "tls"))]
-    UnixTls(TlsListener<UnixListener>),
+    UnixTls(LuaTlsListener<LuaUnixListener>),
 }
 
 /// Trait for accepting incoming connections from various listener types.
@@ -251,23 +254,23 @@ impl FromLua for AnyListener {
     fn from_lua(value: Value, lua: &Lua) -> Result<Self> {
         let value = lua.unpack::<AnyUserData>(value)?;
         match value.type_id() {
-            Some(id) if id == TypeId::of::<TcpListener>() => {
-                let listener = value.take::<TcpListener>()?;
+            Some(id) if id == TypeId::of::<LuaTcpListener>() => {
+                let listener = value.take::<LuaTcpListener>()?;
                 Ok(AnyListener::Tcp(listener))
             }
             #[cfg(unix)]
-            Some(id) if id == TypeId::of::<UnixListener>() => {
-                let listener = value.take::<UnixListener>()?;
+            Some(id) if id == TypeId::of::<LuaUnixListener>() => {
+                let listener = value.take::<LuaUnixListener>()?;
                 Ok(AnyListener::Unix(listener))
             }
             #[cfg(feature = "tls")]
-            Some(id) if id == TypeId::of::<TlsListener<TcpListener>>() => {
-                let listener = value.take::<TlsListener<TcpListener>>()?;
+            Some(id) if id == TypeId::of::<LuaTlsListener<LuaTcpListener>>() => {
+                let listener = value.take::<LuaTlsListener<LuaTcpListener>>()?;
                 Ok(AnyListener::TcpTls(listener))
             }
             #[cfg(all(unix, feature = "tls"))]
-            Some(id) if id == TypeId::of::<TlsListener<UnixListener>>() => {
-                let listener = value.take::<TlsListener<UnixListener>>()?;
+            Some(id) if id == TypeId::of::<LuaTlsListener<LuaUnixListener>>() => {
+                let listener = value.take::<LuaTlsListener<LuaUnixListener>>()?;
                 Ok(AnyListener::UnixTls(listener))
             }
             _ => {

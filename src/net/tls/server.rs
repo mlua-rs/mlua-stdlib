@@ -10,11 +10,11 @@ use mlua::{AnyUserData, Lua, Result as LuaResult, Table, UserData, UserDataMetho
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::{RootCertStore, ServerConfig};
 
-use super::stream::TlsStream;
+use super::stream::LuaTlsStream;
 use crate::net::common::{Accept, AddressProvider, AnySocketAddr};
-use crate::net::tcp::{TcpListener, TcpStream};
+use crate::net::tcp::{LuaTcpListener, LuaTcpStream};
 #[cfg(unix)]
-use crate::net::unix::{UnixListener, UnixStream};
+use crate::net::unix::{LuaUnixListener, LuaUnixStream};
 
 /// TLS configuration options for server connections.
 #[derive(Debug, Clone)]
@@ -47,7 +47,7 @@ impl TlsServerOptions {
         })
     }
 
-    /// Build a TlsServerConfig from this configuration options.
+    /// Build a `TlsServerConfig` from this configuration options.
     ///
     /// This operation may be expensive due to file I/O.
     /// Errors if the certificate or key files cannot be read or parsed.
@@ -116,10 +116,10 @@ pub async fn wrap_accept_stream(
     (stream, config): (AnyUserData, TlsServerConfig),
 ) -> LuaResult<StdResult<AnyUserData, String>> {
     match stream.type_id() {
-        Some(type_id) if type_id == TypeId::of::<TcpStream>() => {
+        Some(type_id) if type_id == TypeId::of::<LuaTcpStream>() => {
             #[rustfmt::skip]
-            let TcpStream { stream, read_timeout, write_timeout, .. } = stream.take::<TcpStream>()?;
-            match TlsStream::new_server(stream, config).await {
+            let LuaTcpStream { stream, read_timeout, write_timeout, .. } = stream.take()?;
+            match LuaTlsStream::new_server(stream, config).await {
                 Ok(mut tls_stream) => {
                     tls_stream.set_read_timeout(read_timeout);
                     tls_stream.set_write_timeout(write_timeout);
@@ -129,10 +129,10 @@ pub async fn wrap_accept_stream(
             }
         }
         #[cfg(unix)]
-        Some(type_id) if type_id == TypeId::of::<UnixStream>() => {
+        Some(type_id) if type_id == TypeId::of::<LuaUnixStream>() => {
             #[rustfmt::skip]
-            let UnixStream { stream, read_timeout, write_timeout } = stream.take::<UnixStream>()?;
-            match TlsStream::new_server(stream, config).await {
+            let LuaUnixStream { stream, read_timeout, write_timeout } = stream.take()?;
+            match LuaTlsStream::new_server(stream, config).await {
                 Ok(mut tls_stream) => {
                     tls_stream.set_read_timeout(read_timeout);
                     tls_stream.set_write_timeout(write_timeout);
@@ -148,23 +148,34 @@ pub async fn wrap_accept_stream(
 /// Generic TLS listener wrapper.
 ///
 /// Wraps any listener type and automatically upgrades accepted connections to TLS.
-pub struct TlsListener<L> {
+pub struct LuaTlsListener<L> {
     inner: L,
     config: TlsServerConfig,
 }
 
-impl<L> TlsListener<L> {
+impl<L> LuaTlsListener<L> {
+    /// Create a new TLS listener wrapping the given listener with the specified TLS configuration.
     pub fn new(inner: L, config: TlsServerConfig) -> Self {
         Self { inner, config }
     }
+
+    /// Get a reference to the underlying listener
+    pub fn get_ref(&self) -> &L {
+        &self.inner
+    }
+
+    /// Get a mutable reference to the underlying listener
+    pub fn get_mut(&mut self) -> &mut L {
+        &mut self.inner
+    }
 }
 
-impl<L> Accept for TlsListener<L>
+impl<L> Accept for LuaTlsListener<L>
 where
     L: Accept + 'static,
     L::Stream: AddressProvider,
 {
-    type Stream = TlsStream<L::Stream>;
+    type Stream = LuaTlsStream<L::Stream>;
 
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
         self.inner.local_addr()
@@ -172,12 +183,12 @@ where
 
     async fn accept(&self) -> io::Result<(Self::Stream, AnySocketAddr)> {
         let (stream, addr) = self.inner.accept().await?;
-        let tls_stream = TlsStream::new_server(stream, self.config.clone()).await?;
+        let tls_stream = LuaTlsStream::new_server(stream, self.config.clone()).await?;
         Ok((tls_stream, addr))
     }
 }
 
-impl<L> UserData for TlsListener<L>
+impl<L> UserData for LuaTlsListener<L>
 where
     L: Accept + 'static,
     L::Stream: AddressProvider,
@@ -189,7 +200,7 @@ where
             // Accept the plain TCP stream from the inner tokio listener
             let (stream, _) = lua_try!(this.inner.accept().await);
             // Upgrade to TLS
-            let tls_stream = lua_try!(TlsStream::new_server(stream, this.config.clone()).await);
+            let tls_stream = lua_try!(LuaTlsStream::new_server(stream, this.config.clone()).await);
             Ok(Ok(lua.create_userdata(tls_stream)?))
         });
     }
@@ -201,15 +212,15 @@ pub fn wrap_listener(
     (listener, config): (AnyUserData, TlsServerConfig),
 ) -> LuaResult<StdResult<AnyUserData, String>> {
     match listener.type_id() {
-        Some(type_id) if type_id == TypeId::of::<TcpListener>() => {
-            let tcp_listener = listener.take::<TcpListener>()?;
-            let tls_listener = TlsListener::new(tcp_listener, config);
+        Some(type_id) if type_id == TypeId::of::<LuaTcpListener>() => {
+            let tcp_listener = listener.take::<LuaTcpListener>()?;
+            let tls_listener = LuaTlsListener::new(tcp_listener, config);
             Ok(Ok(lua.create_userdata(tls_listener)?))
         }
         #[cfg(unix)]
-        Some(type_id) if type_id == TypeId::of::<UnixListener>() => {
-            let unix_listener = listener.take::<UnixListener>()?;
-            let tls_listener = TlsListener::new(unix_listener, config);
+        Some(type_id) if type_id == TypeId::of::<LuaUnixListener>() => {
+            let unix_listener = listener.take::<LuaUnixListener>()?;
+            let tls_listener = LuaTlsListener::new(unix_listener, config);
             Ok(Ok(lua.create_userdata(tls_listener)?))
         }
         _ => Ok(Err("unsupported listener type".to_string())),

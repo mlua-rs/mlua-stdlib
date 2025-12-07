@@ -11,10 +11,10 @@ use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, Server
 use rustls::pki_types::{CertificateDer, DnsName, ServerName, UnixTime};
 use rustls::{ClientConfig, DigitallySignedStruct, RootCertStore, SignatureScheme};
 
-use super::stream::TlsStream;
+use super::stream::LuaTlsStream;
 #[cfg(unix)]
-use crate::net::unix::UnixStream;
-use crate::net::{AnyStream, TcpStream};
+use crate::net::unix::LuaUnixStream;
+use crate::net::{AnyStream, LuaTcpStream};
 
 /// TLS configuration options for client connections
 #[derive(Debug, Clone)]
@@ -229,14 +229,14 @@ pub async fn wrap_stream(
     let config = config.unwrap_or_else(|| DEFAULT_TLS_CLIENT_CONFIG.clone());
 
     match stream.type_id() {
-        Some(type_id) if type_id == TypeId::of::<TcpStream>() => {
+        Some(type_id) if type_id == TypeId::of::<LuaTcpStream>() => {
             #[rustfmt::skip]
-            let TcpStream { stream, host, read_timeout, write_timeout } = stream.take::<TcpStream>()?;
+            let LuaTcpStream { stream, host, read_timeout, write_timeout } = stream.take()?;
             let server_name = server_name
                 .or_else(|| host.and_then(|host| ServerName::try_from(host).ok()))
                 .or_else(|| stream.peer_addr().map(|addr| ServerName::from(addr.ip())).ok())
                 .unwrap_or_else(default_server_name);
-            match TlsStream::new_client(stream.into(), server_name, config).await {
+            match LuaTlsStream::new_client(stream.into(), server_name, config).await {
                 Ok(mut tls_stream) => {
                     tls_stream.set_read_timeout(read_timeout);
                     tls_stream.set_write_timeout(write_timeout);
@@ -246,11 +246,11 @@ pub async fn wrap_stream(
             }
         }
         #[cfg(unix)]
-        Some(type_id) if type_id == TypeId::of::<UnixStream>() => {
+        Some(type_id) if type_id == TypeId::of::<LuaUnixStream>() => {
             #[rustfmt::skip]
-            let UnixStream { stream, read_timeout, write_timeout } = stream.take::<UnixStream>()?;
+            let LuaUnixStream { stream, read_timeout, write_timeout } = stream.take()?;
             let server_name = server_name.unwrap_or_else(default_server_name);
-            match TlsStream::new_client(stream.into(), server_name, config).await {
+            match LuaTlsStream::new_client(stream.into(), server_name, config).await {
                 Ok(mut tls_stream) => {
                     tls_stream.set_read_timeout(read_timeout);
                     tls_stream.set_write_timeout(write_timeout);

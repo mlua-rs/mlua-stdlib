@@ -3,18 +3,19 @@ use std::ops::Deref;
 use std::result::Result as StdResult;
 
 use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, UserDataRegistry, Value};
+use tokio::net::UdpSocket;
 
 use crate::net::{AddressProvider, AnySocketAddr};
 use crate::time::Duration;
 
-/// UDP socket wrapper.
-pub struct UdpSocket {
-    pub(crate) socket: tokio::net::UdpSocket,
+/// A Lua userdata wrapper around [`UdpSocket`].
+pub struct LuaUdpSocket {
+    pub(crate) socket: UdpSocket,
     pub(crate) recv_timeout: Option<Duration>,
 }
 
-impl Deref for UdpSocket {
-    type Target = tokio::net::UdpSocket;
+impl Deref for LuaUdpSocket {
+    type Target = UdpSocket;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -22,16 +23,16 @@ impl Deref for UdpSocket {
     }
 }
 
-impl From<tokio::net::UdpSocket> for UdpSocket {
-    fn from(socket: tokio::net::UdpSocket) -> Self {
-        UdpSocket {
+impl From<UdpSocket> for LuaUdpSocket {
+    fn from(socket: UdpSocket) -> Self {
+        Self {
             socket,
             recv_timeout: None,
         }
     }
 }
 
-impl AddressProvider for UdpSocket {
+impl AddressProvider for LuaUdpSocket {
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
         self.socket.local_addr().map(AnySocketAddr::IP)
     }
@@ -41,7 +42,7 @@ impl AddressProvider for UdpSocket {
     }
 }
 
-impl UserData for UdpSocket {
+impl UserData for LuaUdpSocket {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_async_function("bind", bind);
 
@@ -119,11 +120,11 @@ impl UserData for UdpSocket {
 pub async fn bind(
     _: Lua,
     (host, port, params): (String, Option<u16>, Option<Table>),
-) -> Result<StdResult<UdpSocket, String>> {
+) -> Result<StdResult<LuaUdpSocket, String>> {
     let port = port.unwrap_or(0);
     let recv_timeout = opt_param!(Duration, params, "recv_timeout")?;
 
-    let socket = lua_try!(tokio::net::UdpSocket::bind((host, port)).await);
+    let socket = lua_try!(UdpSocket::bind((host, port)).await);
 
-    Ok(Ok(UdpSocket { socket, recv_timeout }))
+    Ok(Ok(LuaUdpSocket { socket, recv_timeout }))
 }

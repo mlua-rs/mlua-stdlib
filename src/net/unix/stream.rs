@@ -7,18 +7,19 @@ use std::task::{Context, Poll};
 
 use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, UserDataRegistry};
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _, ReadBuf};
+use tokio::net::UnixStream;
 
 use crate::net::{AddressProvider, AnySocketAddr};
 use crate::time::Duration;
 
-pub struct UnixStream {
-    pub(crate) stream: tokio::net::UnixStream,
+pub struct LuaUnixStream {
+    pub(crate) stream: UnixStream,
     pub(crate) read_timeout: Option<Duration>,
     pub(crate) write_timeout: Option<Duration>,
 }
 
-impl Deref for UnixStream {
-    type Target = tokio::net::UnixStream;
+impl Deref for LuaUnixStream {
+    type Target = UnixStream;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -26,16 +27,16 @@ impl Deref for UnixStream {
     }
 }
 
-impl DerefMut for UnixStream {
+impl DerefMut for LuaUnixStream {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stream
     }
 }
 
-impl From<tokio::net::UnixStream> for UnixStream {
-    fn from(stream: tokio::net::UnixStream) -> Self {
-        UnixStream {
+impl From<UnixStream> for LuaUnixStream {
+    fn from(stream: UnixStream) -> Self {
+        LuaUnixStream {
             stream,
             read_timeout: None,
             write_timeout: None,
@@ -43,24 +44,24 @@ impl From<tokio::net::UnixStream> for UnixStream {
     }
 }
 
-impl AddressProvider for UnixStream {
-    fn local_addr(&self) -> std::io::Result<AnySocketAddr> {
+impl AddressProvider for LuaUnixStream {
+    fn local_addr(&self) -> io::Result<AnySocketAddr> {
         self.stream.local_addr().map(AnySocketAddr::Unix)
     }
 
-    fn peer_addr(&self) -> std::io::Result<AnySocketAddr> {
+    fn peer_addr(&self) -> io::Result<AnySocketAddr> {
         self.stream.peer_addr().map(AnySocketAddr::Unix)
     }
 }
 
-impl AsyncRead for UnixStream {
+impl AsyncRead for LuaUnixStream {
     #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.get_mut().stream).poll_read(cx, buf)
     }
 }
 
-impl AsyncWrite for UnixStream {
+impl AsyncWrite for LuaUnixStream {
     #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.get_mut().stream).poll_write(cx, buf)
@@ -77,7 +78,7 @@ impl AsyncWrite for UnixStream {
     }
 }
 
-impl UserData for UnixStream {
+impl UserData for LuaUnixStream {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_async_function("connect", connect);
 
@@ -137,16 +138,16 @@ impl UserData for UnixStream {
 pub async fn connect(
     _: Lua,
     (path, params): (PathBuf, Option<Table>),
-) -> Result<StdResult<UnixStream, String>> {
+) -> Result<StdResult<LuaUnixStream, String>> {
     let timeout = opt_param!(Duration, params, "timeout")?; // A single timeout for any operation
     let connect_timeout = opt_param!(params, "connect_timeout")?.or(timeout);
     let read_timeout = opt_param!(params, "read_timeout")?.or(timeout);
     let write_timeout = opt_param!(params, "write_timeout")?.or(timeout);
 
-    let stream = with_io_timeout!(connect_timeout, tokio::net::UnixStream::connect(path));
+    let stream = with_io_timeout!(connect_timeout, UnixStream::connect(path));
     let stream = lua_try!(stream);
 
-    Ok(Ok(UnixStream {
+    Ok(Ok(LuaUnixStream {
         stream,
         read_timeout,
         write_timeout,

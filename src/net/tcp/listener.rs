@@ -1,17 +1,43 @@
 use std::io;
 use std::net::SocketAddr;
+use std::ops::{Deref, DerefMut};
 use std::result::Result as StdResult;
 
 use mlua::{Lua, Result, Table, UserData, UserDataMethods, UserDataRegistry};
-use tokio::net::lookup_host;
+use tokio::net::{TcpListener, lookup_host};
 
-use super::{SocketOptions, TcpSocket, TcpStream};
+use super::{LuaTcpSocket, LuaTcpStream, SocketOptions};
 use crate::net::common::{Accept, AnySocketAddr};
 
-pub struct TcpListener(pub(crate) tokio::net::TcpListener);
+/// Lua wrapper around tokio [`TcpListener`].
+#[derive(Debug)]
+pub struct LuaTcpListener(pub(crate) TcpListener);
 
-impl Accept for TcpListener {
-    type Stream = TcpStream;
+impl Deref for LuaTcpListener {
+    type Target = TcpListener;
+
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for LuaTcpListener {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl From<TcpListener> for LuaTcpListener {
+    #[inline]
+    fn from(listener: TcpListener) -> Self {
+        LuaTcpListener(listener)
+    }
+}
+
+impl Accept for LuaTcpListener {
+    type Stream = LuaTcpStream;
 
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
         self.0.local_addr().map(AnySocketAddr::IP)
@@ -19,13 +45,11 @@ impl Accept for TcpListener {
 
     async fn accept(&self) -> io::Result<(Self::Stream, AnySocketAddr)> {
         let (stream, addr) = self.0.accept().await?;
-        let io = TcpStream::from(stream);
-        let addr = AnySocketAddr::IP(addr);
-        Ok((io, addr))
+        Ok((stream.into(), AnySocketAddr::IP(addr)))
     }
 }
 
-impl UserData for TcpListener {
+impl UserData for LuaTcpListener {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
 
@@ -33,15 +57,24 @@ impl UserData for TcpListener {
 
         registry.add_async_method("accept", |_, this, ()| async move {
             let (stream, _) = lua_try!(this.0.accept().await);
-            Ok(Ok(TcpStream::from(stream)))
+            Ok(Ok(LuaTcpStream::from(stream)))
         });
     }
 }
 
+/// Creates a TCP listener bound to the specified address.
+///
+/// # Arguments
+/// * `addr`: The address to bind to.
+/// * `port`: The port to bind to. If `None`, a random available port will be used.
+/// * `params` (optional): A table of socket options.
+///
+/// The following options can be specified:
+/// * `backlog`: The maximum number of pending connections. Default is 1024.
 pub async fn listen(
     _: Lua,
     (addr, port, params): (String, Option<u16>, Option<Table>),
-) -> Result<StdResult<TcpListener, String>> {
+) -> Result<StdResult<LuaTcpListener, String>> {
     let port = port.unwrap_or(0);
     let addrs = lua_try!(lookup_host((addr, port)).await);
 
@@ -49,12 +82,13 @@ pub async fn listen(
     let backlog = opt_param!(params, "backlog")?;
 
     let try_listen = |addr: SocketAddr| {
-        let sock = TcpSocket::new_for_addr(addr)?;
+        let sock = LuaTcpSocket::new_for_addr(addr)?;
         sock.set_options(sock_options)?;
         sock.0.set_reuseaddr(true)?;
         sock.0.bind(addr)?;
-        let listener = TcpListener(sock.0.listen(backlog.unwrap_or(1024))?);
-        io::Result::Ok(listener)
+        let backlog = backlog.unwrap_or(1024);
+        let listener = sock.0.listen(backlog)?;
+        io::Result::Ok(listener.into())
     };
 
     let mut last_err = None;

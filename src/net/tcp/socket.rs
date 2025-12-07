@@ -3,11 +3,12 @@ use std::net::SocketAddr;
 use std::ops::Deref;
 
 use mlua::{Result, Table};
+use tokio::net::TcpSocket;
 
-pub(crate) struct TcpSocket(pub(crate) tokio::net::TcpSocket);
+pub(crate) struct LuaTcpSocket(pub(crate) TcpSocket);
 
-impl Deref for TcpSocket {
-    type Target = tokio::net::TcpSocket;
+impl Deref for LuaTcpSocket {
+    type Target = TcpSocket;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -25,13 +26,13 @@ pub(super) struct SocketOptions {
     reuseport: Option<bool>,
 }
 
-impl TcpSocket {
+impl LuaTcpSocket {
     pub(crate) fn new_for_addr(addr: SocketAddr) -> io::Result<Self> {
         let sock = match addr {
-            SocketAddr::V4(_) => tokio::net::TcpSocket::new_v4()?,
-            SocketAddr::V6(_) => tokio::net::TcpSocket::new_v6()?,
+            SocketAddr::V4(_) => TcpSocket::new_v4()?,
+            SocketAddr::V6(_) => TcpSocket::new_v6()?,
         };
-        Ok(TcpSocket(sock))
+        Ok(LuaTcpSocket(sock))
     }
 
     pub(crate) fn set_options(&self, options: SocketOptions) -> io::Result<()> {

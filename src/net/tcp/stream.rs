@@ -7,21 +7,22 @@ use std::task::{Context, Poll};
 
 use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, UserDataRegistry};
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _, ReadBuf};
-use tokio::net::lookup_host;
+use tokio::net::{TcpStream, lookup_host};
 
-use super::{SocketOptions, TcpSocket};
+use super::{LuaTcpSocket, SocketOptions};
 use crate::net::{AddressProvider, AnySocketAddr};
 use crate::time::Duration;
 
-pub struct TcpStream {
-    pub(crate) stream: tokio::net::TcpStream,
+/// Lua wrapper around tokio [`TcpStream`].
+pub struct LuaTcpStream {
+    pub(crate) stream: TcpStream,
     pub(crate) host: Option<String>,
     pub(crate) read_timeout: Option<Duration>,
     pub(crate) write_timeout: Option<Duration>,
 }
 
-impl Deref for TcpStream {
-    type Target = tokio::net::TcpStream;
+impl Deref for LuaTcpStream {
+    type Target = TcpStream;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -29,16 +30,17 @@ impl Deref for TcpStream {
     }
 }
 
-impl DerefMut for TcpStream {
+impl DerefMut for LuaTcpStream {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.stream
     }
 }
 
-impl From<tokio::net::TcpStream> for TcpStream {
-    fn from(stream: tokio::net::TcpStream) -> Self {
-        TcpStream {
+impl From<TcpStream> for LuaTcpStream {
+    #[inline]
+    fn from(stream: TcpStream) -> Self {
+        Self {
             stream,
             host: None,
             read_timeout: None,
@@ -47,7 +49,7 @@ impl From<tokio::net::TcpStream> for TcpStream {
     }
 }
 
-impl AddressProvider for TcpStream {
+impl AddressProvider for LuaTcpStream {
     fn local_addr(&self) -> io::Result<AnySocketAddr> {
         self.stream.local_addr().map(AnySocketAddr::IP)
     }
@@ -57,14 +59,14 @@ impl AddressProvider for TcpStream {
     }
 }
 
-impl AsyncRead for TcpStream {
+impl AsyncRead for LuaTcpStream {
     #[inline]
     fn poll_read(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &mut ReadBuf<'_>) -> Poll<io::Result<()>> {
         Pin::new(&mut self.get_mut().stream).poll_read(cx, buf)
     }
 }
 
-impl AsyncWrite for TcpStream {
+impl AsyncWrite for LuaTcpStream {
     #[inline]
     fn poll_write(self: Pin<&mut Self>, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
         Pin::new(&mut self.get_mut().stream).poll_write(cx, buf)
@@ -81,7 +83,7 @@ impl AsyncWrite for TcpStream {
     }
 }
 
-impl UserData for TcpStream {
+impl UserData for LuaTcpStream {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_async_function("connect", connect);
 
@@ -138,10 +140,22 @@ impl UserData for TcpStream {
     }
 }
 
+/// Connects to a TCP server at the given host and port.
+///
+/// # Arguments
+/// * `host` - The hostname or IP address of the server.
+/// * `port` - The port number of the server.
+/// * `params` - Optional table of socket options.
+///
+/// The following options can be specified:
+/// * `timeout`: A general timeout applied to all operations.
+/// * `connect_timeout`: Timeout for the connect operation.
+/// * `read_timeout`: Timeout for read operations.
+/// * `write_timeout`: Timeout for write operations.
 pub async fn connect(
     _: Lua,
     (host, port, params): (String, u16, Option<Table>),
-) -> Result<StdResult<TcpStream, String>> {
+) -> Result<StdResult<LuaTcpStream, String>> {
     let addrs = lua_try!(lookup_host((&*host, port)).await);
     let options = SocketOptions::from_table(&params)?;
 
@@ -151,7 +165,7 @@ pub async fn connect(
     let write_timeout = opt_param!(Duration, params, "write_timeout")?.or(timeout);
 
     let try_connect = |addr: SocketAddr| async move {
-        let sock = TcpSocket::new_for_addr(addr)?;
+        let sock = LuaTcpSocket::new_for_addr(addr)?;
         sock.set_options(options)?;
         with_io_timeout!(connect_timeout, sock.0.connect(addr))
     };
@@ -160,7 +174,7 @@ pub async fn connect(
     for addr in addrs {
         match try_connect(addr).await {
             Ok(stream) => {
-                return Ok(Ok(TcpStream {
+                return Ok(Ok(LuaTcpStream {
                     stream,
                     host: Some(host.clone()),
                     read_timeout,

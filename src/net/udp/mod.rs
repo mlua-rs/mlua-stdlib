@@ -1,11 +1,11 @@
 use mlua::{Lua, Result, Table};
 
-pub use socket::{UdpSocket, bind};
+pub use socket::{LuaUdpSocket, bind};
 
 /// A loader for the `net/udp` module.
 fn loader(lua: &Lua) -> Result<Table> {
     let t = lua.create_table()?;
-    t.set("UdpSocket", lua.create_proxy::<UdpSocket>()?)?;
+    t.set("UdpSocket", lua.create_proxy::<LuaUdpSocket>()?)?;
     t.set("bind", lua.create_async_function(bind)?)?;
     Ok(t)
 }
