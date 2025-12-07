@@ -1,40 +1,67 @@
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 
+use bytes::Bytes;
 use mlua::{
-    BorrowedBytes, Error, FromLua, Lua, MaybeSend, Result, String as LuaString, UserData, UserDataRef, Value,
+    BorrowedBytes, Error, FromLua, Lua, MetaMethod, Result, String as LuaString, UserData, UserDataMethods,
+    UserDataRegistry, Value,
 };
 
-/// A wrapper around a byte slice that can be passed to Lua as userdata.
-#[cfg(not(feature = "send"))]
-pub struct BytesBox(Box<dyn AsRef<[u8]>>);
+/// A Lua userdata wrapper around [`Bytes`].
+#[derive(Clone, Default, Debug, FromLua, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub struct LuaBytes(pub Bytes);
 
-/// A wrapper around a byte slice that can be passed to Lua as userdata.
-#[cfg(feature = "send")]
-pub struct BytesBox(Box<dyn AsRef<[u8]> + Send>);
+impl Deref for LuaBytes {
+    type Target = Bytes;
 
-impl<T: AsRef<[u8]> + MaybeSend + 'static> From<T> for BytesBox {
-    #[inline(always)]
-    fn from(value: T) -> Self {
-        Self(Box::new(value))
+    #[inline]
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
-impl UserData for BytesBox {}
+impl DerefMut for LuaBytes {
+    #[inline]
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
-/// A type that can represent either a Lua string or a `BytesBox` userdata.
+impl UserData for LuaBytes {
+    fn register(registry: &mut UserDataRegistry<Self>) {
+        registry.add_method("len", |_, this, ()| Ok(this.len()));
+
+        registry.add_method("is_empty", |_, this, ()| Ok(this.is_empty()));
+
+        registry.add_method_mut("split_off", |_, this, n| Ok(Self(this.split_off(n))));
+        registry.add_method_mut("split_to", |_, this, n| Ok(Self(this.split_to(n))));
+
+        registry.add_method_mut("clear", |_, this, ()| {
+            this.clear();
+            Ok(())
+        });
+        registry.add_method_mut("truncate", |_, this, len| {
+            this.truncate(len);
+            Ok(())
+        });
+
+        registry.add_meta_method(MetaMethod::ToString, |lua, this, ()| lua.create_string(&this.0));
+    }
+}
+
+/// A type that can represent either a Lua string or a [`LuaBytes`] userdata.
 pub enum StringOrBytes {
     String(LuaString),
-    Bytes(UserDataRef<BytesBox>),
+    Bytes(LuaBytes),
 }
 
 impl FromLua for StringOrBytes {
     fn from_lua(value: Value, _lua: &Lua) -> Result<Self> {
         match value {
             Value::String(s) => Ok(Self::String(s)),
-            Value::UserData(ud) => Ok(Self::Bytes(ud.borrow::<BytesBox>()?)),
+            Value::UserData(ud) => Ok(Self::Bytes(ud.borrow::<LuaBytes>()?.clone())),
             _ => Err(Error::FromLuaConversionError {
                 from: value.type_name(),
-                to: "string or bytes".into(),
+                to: "String or Bytes".into(),
                 message: None,
             }),
         }
@@ -42,11 +69,12 @@ impl FromLua for StringOrBytes {
 }
 
 impl StringOrBytes {
+    /// Get a type that dereferences to a underlying byte slice.
     #[inline]
-    pub(crate) fn as_bytes_deref(&self) -> impl Deref<Target = [u8]> {
+    pub fn as_bytes_deref(&self) -> impl Deref<Target = [u8]> {
         match self {
             StringOrBytes::String(s) => AsBytesRefImpl::Lua(s.as_bytes()),
-            StringOrBytes::Bytes(b) => AsBytesRefImpl::Ref((*b.0).as_ref()),
+            StringOrBytes::Bytes(b) => AsBytesRefImpl::Ref(b.as_ref()),
         }
     }
 }
