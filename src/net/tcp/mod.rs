@@ -3,7 +3,7 @@ use mlua::{Lua, Result, Table};
 pub use listener::{LuaTcpListener, listen};
 pub use stream::{LuaTcpStream, connect};
 
-use socket::{SocketOptions, LuaTcpSocket};
+use socket::{LuaTcpSocket, SocketOptions};
 
 /// A loader for the `net/tcp` module.
 fn loader(lua: &Lua) -> Result<Table> {

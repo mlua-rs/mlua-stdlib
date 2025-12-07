@@ -3,17 +3,18 @@ use std::mem;
 use http::request::{Parts, Request};
 use http_body_util::Either as EitherBody;
 use hyper::body::Incoming;
-use mlua::{AnyUserData, Error, FromLua, Lua, Result, String as LuaString, UserData, UserDataMethods, Value};
+use mlua::{
+    AnyUserData, Error, FromLua, Lua, MetaMethod, Result, String as LuaString, Table, UserData,
+    UserDataMethods, Value,
+};
 
-use super::headers::LuaHeaderMapExt;
-use crate::http::{LuaBody, LuaHeaders, LuaMethod};
+use crate::http::{LuaBody, LuaHeaderMapExt, LuaHeaders, LuaMethod};
 use crate::time::Duration;
 
-/// A Lua-accessible HTTP request
+/// A Lua wrapper around [`http::Request`].
 pub struct LuaRequest {
     pub(crate) head: Parts,
     pub(crate) body: EitherBody<LuaBody, AnyUserData>,
-    pub(crate) timeout: Option<Duration>,
 }
 
 impl Default for LuaRequest {
@@ -23,12 +24,12 @@ impl Default for LuaRequest {
         LuaRequest {
             head,
             body: EitherBody::Left(LuaBody::new()),
-            timeout: None,
         }
     }
 }
 
 impl LuaRequest {
+    /// Consumes the LuaRequest and returns its parts.
     pub fn into_parts(self) -> (Parts, LuaBody) {
         let LuaRequest { head, body, .. } = self;
         let body = match body {
@@ -36,6 +37,14 @@ impl LuaRequest {
             EitherBody::Right(ud) => ud.take::<LuaBody>().expect("Body userdata has wrong type"),
         };
         (head, body)
+    }
+
+    #[allow(unused)]
+    pub(crate) fn params(&self) -> RequestParams {
+        (self.head.extensions)
+            .get::<RequestParams>()
+            .cloned()
+            .unwrap_or_default()
     }
 }
 
@@ -92,7 +101,7 @@ impl UserData for LuaRequest {
         registry.add_method_mut("body", |lua, this, ()| {
             match &mut this.body {
                 EitherBody::Left(body) => {
-                    // Move the body to Lua
+                    // Move the body into Lua
                     let ud_body = lua.create_userdata(mem::take(body))?;
                     this.body = EitherBody::Right(ud_body.clone());
                     Ok(ud_body)
@@ -105,6 +114,18 @@ impl UserData for LuaRequest {
             this.body = EitherBody::Left(body);
             Ok(())
         });
+
+        registry.add_meta_method(MetaMethod::ToString, |_, this, ()| {
+            let mut buf = String::with_capacity(1024);
+            let (method, uri, version) = (&this.head.method, &this.head.uri, this.head.version);
+            buf.push_str(&format!("{method} {uri} {version:?}\n"));
+            // Iterate headers
+            for (name, value) in &this.head.headers {
+                let value = String::from_utf8_lossy(value.as_bytes());
+                buf.push_str(&format!("{name}: {value}\n"));
+            }
+            Ok(buf)
+        });
     }
 }
 
@@ -114,7 +135,6 @@ impl From<Request<Incoming>> for LuaRequest {
         LuaRequest {
             head,
             body: EitherBody::Left(LuaBody::from(body)),
-            timeout: None,
         }
     }
 }
@@ -140,21 +160,36 @@ impl FromLua for LuaRequest {
                 }
                 // TODO: json, form, etc
 
-                // Additional parameters
-                let timeout = opt_param!(Duration, Some(&params), "timeout")?;
+                // Additional custom parameters
+                head.extensions.insert(RequestParams::from_table(&params)?);
 
                 Ok(Self {
                     head,
                     body: EitherBody::Left(body),
-                    timeout,
                 })
             }
             Value::UserData(ud) if ud.is::<Self>() => ud.take::<Self>(),
             _ => Err(Error::FromLuaConversionError {
                 from: value.type_name(),
                 to: "Request".to_string(),
-                message: Some("expected Table or Request".to_string()),
+                message: Some("expected Table or Request userdata".to_string()),
             }),
         }
+    }
+}
+
+/// Additional custom request parameters
+#[derive(Clone, Debug, Default)]
+pub(crate) struct RequestParams {
+    pub(crate) timeout: Option<Duration>,
+}
+
+impl RequestParams {
+    pub(crate) fn from_table(table: &Table) -> Result<Self> {
+        let mut params = RequestParams::default();
+        if let Some(timeout) = opt_param!(Duration, Some(table), "timeout")? {
+            params.timeout = Some(timeout);
+        }
+        Ok(params)
     }
 }

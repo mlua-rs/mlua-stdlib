@@ -13,14 +13,20 @@ use mlua::{
 use super::headers::LuaHeaderMapExt;
 use crate::http::{LuaBody, LuaHeaders};
 
-/// A Lua-accessible HTTP response
+/// A Lua wrapper around [`http::Response`].
 pub struct LuaResponse {
     pub(crate) head: Parts,
     pub(crate) body: EitherBody<LuaBody, AnyUserData>,
 }
 
+impl Default for LuaResponse {
+    fn default() -> Self {
+        LuaResponse::new(LuaBody::new())
+    }
+}
+
 impl LuaResponse {
-    /// Create a new Response with the given status code
+    /// Create a new Response with the given body.
     pub fn new(body: LuaBody) -> Self {
         let head = Response::new(()).into_parts().0;
         let body = EitherBody::Left(body);
@@ -100,11 +106,8 @@ impl UserData for LuaResponse {
 
         registry.add_meta_method(MetaMethod::ToString, |_, this, ()| {
             let mut buf = String::with_capacity(1024);
-            let (version, status, reason) = (
-                &this.head.version,
-                this.head.status.as_u16(),
-                this.head.status.canonical_reason().unwrap_or(""),
-            );
+            let (version, status) = (this.head.version, this.head.status);
+            let reason = status.canonical_reason().unwrap_or("");
             buf.push_str(&format!("{version:?} {status} {reason}\n"));
             // Iterate headers
             for (name, value) in &this.head.headers {

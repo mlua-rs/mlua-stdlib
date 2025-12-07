@@ -34,13 +34,13 @@ where
 }
 
 /// HTTP server that can handle HTTP/1 and HTTP/2 connections
-pub struct HttpServer {
+pub struct LuaHttpServer {
     conn: ConnBuilder<LocalExec>,
     graceful: Arc<Mutex<GracefulShutdown>>,
     shutdown_notify: Arc<Mutex<tokio::sync::watch::Sender<()>>>,
 }
 
-impl HttpServer {
+impl LuaHttpServer {
     pub fn new(params: Option<Table>) -> Result<Self> {
         let mut conn = ConnBuilder::new(LocalExec);
 
@@ -99,7 +99,7 @@ impl HttpServer {
         conn.http1().timer(TokioTimer::new());
         conn.http2().timer(TokioTimer::new());
 
-        Ok(HttpServer {
+        Ok(LuaHttpServer {
             conn,
             graceful: Default::default(),
             shutdown_notify: Default::default(),
@@ -179,9 +179,9 @@ impl HttpServer {
     }
 }
 
-impl UserData for HttpServer {
+impl UserData for LuaHttpServer {
     fn register(registry: &mut UserDataRegistry<Self>) {
-        registry.add_function("new", |_: &Lua, params| HttpServer::new(params));
+        registry.add_function("new", |_: &Lua, params| Self::new(params));
 
         registry.add_async_method(
             "serve_connection",

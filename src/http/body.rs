@@ -41,10 +41,12 @@ impl Default for LuaBody {
 }
 
 impl LuaBody {
+    /// Creates a new empty body.
     pub const fn new() -> Self {
         LuaBody(Inner::Bytes(Bytes::new()))
     }
 
+    /// Buffers the entire body into memory.
     async fn buffer(&mut self) -> Result<(), Error> {
         match self {
             LuaBody(Inner::Bytes(_)) => Ok(()),
@@ -56,6 +58,7 @@ impl LuaBody {
         }
     }
 
+    /// Consumes the body if it is not already buffered, returning a buffered body.
     fn consume_if_unbuffered(&mut self) -> Self {
         match self {
             LuaBody(Inner::Bytes(bytes)) => LuaBody(Inner::Bytes(bytes.clone())),
@@ -65,12 +68,14 @@ impl LuaBody {
 }
 
 impl From<Bytes> for LuaBody {
+    #[inline]
     fn from(bytes: Bytes) -> Self {
         LuaBody(Inner::Bytes(bytes))
     }
 }
 
 impl From<Incoming> for LuaBody {
+    #[inline]
     fn from(incoming: Incoming) -> Self {
         LuaBody(Inner::Incoming {
             incoming,

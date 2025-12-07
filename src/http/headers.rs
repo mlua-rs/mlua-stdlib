@@ -197,6 +197,7 @@ fn set_headers_metatable(lua: &Lua, headers: &Table) -> Result<()> {
     headers.set_metatable(Some(metatable))
 }
 
+/// Extension trait for converting Lua strings to header names and values.
 pub(crate) trait LuaHeaderValueExt {
     fn from_lua(value: &LuaString) -> Result<Self>
     where
@@ -217,6 +218,7 @@ impl LuaHeaderValueExt for HeaderValue {
     }
 }
 
+/// Extension trait for [`http::HeaderMap`] to provide Lua-friendly methods.
 pub(crate) trait LuaHeaderMapExt {
     fn get(&self, lua: &Lua, name: &LuaString) -> Result<Option<LuaString>>;
 

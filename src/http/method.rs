@@ -1,6 +1,6 @@
 use mlua::{ExternalResult, FromLua, Lua, Result, String as LuaString, Value};
 
-/// A Lua userdata wrapper around [`http::Method`].
+/// A Lua wrapper around [`http::Method`].
 #[derive(Clone, Default, Debug)]
 pub struct LuaMethod(pub http::Method);
 

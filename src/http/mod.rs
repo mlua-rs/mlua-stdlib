@@ -5,15 +5,15 @@ pub use headers::LuaHeaders;
 pub use method::LuaMethod;
 pub use request::LuaRequest;
 pub use response::LuaResponse;
+pub use server::LuaHttpServer;
 
-#[allow(unused_imports)]
 pub(crate) use headers::LuaHeaderMapExt;
 
 /// A loader for the `http` module.
 fn loader(lua: &Lua) -> Result<Table> {
     let t = lua.create_table()?;
     t.set("Headers", lua.create_proxy::<LuaHeaders>()?)?;
-    t.set("HttpServer", lua.create_proxy::<server::HttpServer>()?)?;
+    t.set("HttpServer", lua.create_proxy::<LuaHttpServer>()?)?;
     t.set("Request", lua.create_proxy::<LuaRequest>()?)?;
     t.set("Response", lua.create_proxy::<LuaResponse>()?)?;
     Ok(t)

@@ -16,6 +16,7 @@ use crate::time::Duration;
 /// Lua wrapper around tokio [`TcpStream`].
 pub struct LuaTcpStream {
     pub(crate) stream: TcpStream,
+    #[allow(unused)]
     pub(crate) host: Option<String>,
     pub(crate) read_timeout: Option<Duration>,
     pub(crate) write_timeout: Option<Duration>,

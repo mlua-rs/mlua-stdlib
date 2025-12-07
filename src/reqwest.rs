@@ -5,8 +5,9 @@ use mlua::{
 use crate::http::{LuaHeaders, LuaRequest, LuaResponse};
 use crate::time::Duration;
 
+/// A Lua wrapper around [`reqwest::Client`].
 #[derive(Clone, Debug)]
-pub(crate) struct Client(reqwest::Client);
+pub struct Client(pub reqwest::Client);
 
 impl UserData for Client {
     fn register(registry: &mut UserDataRegistry<Self>) {
@@ -69,14 +70,14 @@ impl UserData for Client {
             "request",
             |_, this, (url, req): (String, Option<LuaRequest>)| async move {
                 let req = req.unwrap_or_default();
-                let timeout = req.timeout;
+                let params = req.params();
                 let (head, body) = req.into_parts();
 
                 let mut req_builder = this.0.request(head.method, url);
                 req_builder = req_builder.version(head.version);
                 req_builder = req_builder.headers(head.headers);
                 req_builder = req_builder.body(body);
-                if let Some(timeout) = timeout {
+                if let Some(timeout) = params.timeout {
                     req_builder = req_builder.timeout(timeout.0);
                 }
 
