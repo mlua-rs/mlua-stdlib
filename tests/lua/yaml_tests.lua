@@ -5,16 +5,16 @@ testing:test("encode", function(t)
     local data, err = yaml.encode({ c = { 3, 4, 5, "6" } })
     t.assert_eq(err, nil)
     -- YAML output might have different formatting than JSON
-    t.assert(data:find("c:"), "should contain 'c:'")
-    t.assert(data:find("- 3"), "should contain sequence items")
+    t.assert_contains(data, "c:", "should contain 'c:'")
+    t.assert_contains(data, "- 3", "should contain sequence items")
 
     data, err = yaml.encode({ f = function() end })
     t.assert_eq(data, nil)
-    t.assert(err:find("cannot serialize <function>"), "unexpected error message: " .. err)
+    t.assert_contains(err, "cannot serialize <function>")
 
     -- Relaxed mode
     data = yaml.encode({ f = function() end, a = 1 }, { relaxed = true })
-    t.assert(data:find("a: 1"), "relaxed mode should work")
+    t.assert_contains(data, "a: 1", "relaxed mode should work")
 end)
 
 -- Test yaml decode

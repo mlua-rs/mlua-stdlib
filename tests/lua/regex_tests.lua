@@ -29,7 +29,7 @@ testing:test("regex_basic", function(t)
     -- Test invalid regex
     local re_invalid, err = regex.new("(")
     t.assert_eq(re_invalid, nil, "re is not nil")
-    t.assert(string.find(err, "regex parse error"), "err must contain 'regex parse error'")
+    t.assert_contains(err, "regex parse error", "err must contain 'regex parse error'")
 
     -- Test replace
     local re_replace = regex.new("(?P<last>[^,\\s]+),\\s+(?P<first>\\S+)")
@@ -46,7 +46,8 @@ testing:test("regex_shortcuts", function(t)
     t.assert(regex.is_match("\\b\\w{13}\\b", "I categorically deny having ..."), "is_match should have matches")
     t.assert(not regex.is_match("abc", "bca"), "is_match should not have matches")
     local is_match, err = regex.is_match("(", "")
-    t.assert(is_match == nil and string.find(err, "regex parse error") ~= nil, "is_match should return error")
+    t.assert_eq(is_match, nil, "is_match should return nil")
+    t.assert_contains(err, "regex parse error", "is_match should return error")
 
     -- Test "match"
     local matches = regex.match("^(\\d{4})-(\\d{2})-(\\d{2})$", "2014-05-01")
@@ -55,7 +56,8 @@ testing:test("regex_shortcuts", function(t)
     t.assert_eq(matches[2], "05", "second capture group should match month")
     t.assert_eq(matches[3], "01", "third capture group should match day")
     matches, err = regex.match("(", "")
-    t.assert(matches == nil and string.find(err, "regex parse error") ~= nil, "match should return error")
+    t.assert_eq(matches, nil, "match should return nil")
+    t.assert_contains(err, "regex parse error", "match should return error")
 end)
 
 -- Test RegexSet functionality

@@ -88,14 +88,14 @@ testing:test("Headers errors", function(t)
         return http.Headers.new(123)
     end)
     t.assert_eq(ok, false)
-    t.assert_match(err, "error converting Lua integer to table")
+    t.assert_contains(err, "error converting Lua integer to table")
 
     -- Invalid header name
     ok, err = pcall(function()
         headers:set("Invalid Header", "value")
     end)
     t.assert_eq(ok, false)
-    t.assert_match(err, "invalid HTTP header name")
+    t.assert_contains(err, "invalid HTTP header name")
 
     -- Invalid header value
     ok, err = pcall(function()

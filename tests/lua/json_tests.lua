@@ -8,7 +8,7 @@ testing:test("encode", function(t)
 
     data, err = json.encode({ f = function() end })
     t.assert_eq(data, nil)
-    t.assert(err:find("cannot serialize <function>"), "unexpected error message: " .. err)
+    t.assert_contains(err, "cannot serialize <function>", "unexpected error message: " .. err)
 
     -- Relaxed mode
     data = json.encode({ f = function() end, a = 1 }, { relaxed = true })
@@ -30,7 +30,7 @@ testing:test("decode", function(t)
     -- Invalid JSON
     value, err = json.decode("{a:1}")
     t.assert_eq(value, nil)
-    t.assert(err:find("key must be a string"), "unexpected error message: " .. err)
+    t.assert_contains(err, "key must be a string", "unexpected error message: " .. err)
 
     -- No array metatable by default
     value, err = json.decode("[1,2,3]", { set_array_metatable = false })

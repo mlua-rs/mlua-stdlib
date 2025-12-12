@@ -25,6 +25,54 @@ function assertions.assert_ne(left, right, message)
     end
 end
 
+function assertions.assert_lt(left, right, message)
+    if not (left < right) then
+        if message ~= nil then
+            message = string.format("assertion `left < right` failed: %s", tostring(message))
+        else
+            message = "assertion `left < right` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)), frame_level)
+    end
+end
+
+function assertions.assert_gt(left, right, message)
+    if not (left > right) then
+        if message ~= nil then
+            message = string.format("assertion `left > right` failed: %s", tostring(message))
+        else
+            message = "assertion `left > right` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)), frame_level)
+    end
+end
+
+function assertions.assert_le(left, right, message)
+    if not (left <= right) then
+        if message ~= nil then
+            message = string.format("assertion `left <= right` failed: %s", tostring(message))
+        else
+            message = "assertion `left <= right` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)), frame_level)
+    end
+end
+
+function assertions.assert_ge(left, right, message)
+    if not (left >= right) then
+        if message ~= nil then
+            message = string.format("assertion `left >= right` failed: %s", tostring(message))
+        else
+            message = "assertion `left >= right` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  left: %s\n right: %s", message, tostring(left), tostring(right)), frame_level)
+    end
+end
+
 function assertions.assert_match(obj, pattern, message)
     if not tostring(obj):match(pattern) then
         if message ~= nil then
@@ -99,6 +147,48 @@ function assertions.assert_same(left, right, message)
             string.format("%s\n  left%s: %s\n right%s: %s", message, level, tostring(left_v), level, tostring(right_v))
         local frame_level = opts.level or 2
         error(error_msg, frame_level)
+    end
+end
+
+function assertions.assert_starts_with(str, prefix, message)
+    str = tostring(str)
+    prefix = tostring(prefix)
+    if str:sub(1, #prefix) ~= prefix then
+        if message ~= nil then
+            message = string.format("assertion `str:starts_with(prefix)` failed: %s", tostring(message))
+        else
+            message = "assertion `str:starts_with(prefix)` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  prefix: %s\n     str: %s", message, prefix, str), frame_level)
+    end
+end
+
+function assertions.assert_ends_with(str, suffix, message)
+    str = tostring(str)
+    suffix = tostring(suffix)
+    if suffix ~= "" and str:sub(-#suffix) ~= suffix then
+        if message ~= nil then
+            message = string.format("assertion `str:ends_with(suffix)` failed: %s", tostring(message))
+        else
+            message = "assertion `str:ends_with(suffix)` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  suffix: %s\n     str: %s", message, suffix, str), frame_level)
+    end
+end
+
+function assertions.assert_contains(str, substr, message)
+    str = tostring(str)
+    substr = tostring(substr)
+    if not str:find(substr, 1, true) then
+        if message ~= nil then
+            message = string.format("assertion `str:contains(substr)` failed: %s", tostring(message))
+        else
+            message = "assertion `str:contains(substr)` failed!"
+        end
+        local frame_level = opts.level or 2
+        error(string.format("%s\n  substr: %s\n     str: %s", message, substr, str), frame_level)
     end
 end
 

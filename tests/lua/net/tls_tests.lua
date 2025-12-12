@@ -29,7 +29,7 @@ testing:test("TLS basic connection to external server", function(t)
     t.assert_ne(write_ok, nil, write_err)
     local data, read_err = tls_stream:read(1024)
     t.assert_ne(data, nil, read_err)
-    t.assert_match(data, "HTTP/1.1", "Should receive HTTP response")
+    t.assert_contains(data, "HTTP/1.1", "Should receive HTTP response")
 
     tls_stream:shutdown()
 end)

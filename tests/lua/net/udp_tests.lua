@@ -72,8 +72,8 @@ testing:test("UDP timeout", function(t)
     local elapsed = start:elapsed():as_secs()
 
     t.assert_eq(data, nil)
-    t.assert_match(recv_err, "deadline has elapsed")
-    t.assert(elapsed >= 0.1, "elapsed time should be at least 100ms, got " .. tostring(elapsed))
+    t.assert_contains(recv_err, "deadline has elapsed")
+    t.assert_ge(elapsed, 0.1, "elapsed time should be at least 100ms")
 end)
 
 testing:test("UDP broadcast", function(t)

@@ -5,8 +5,8 @@ testing:test("Instant", function(t)
     t.assert_eq(now, now)
 
     local future = now + 1
-    t.assert(now < future, "now should be less than future")
-    t.assert(now <= future, "now should be less than or equal to future")
+    t.assert_lt(now, future, "now should be less than future")
+    t.assert_le(now, future, "now should be less than or equal to future")
 
     local diff = future - now
     t.assert_eq(diff:as_secs(), 1.0)
@@ -30,7 +30,5 @@ testing:test("Duration", function(t)
     t.assert_eq(remainder, quarter)
 
     local elapsed = now:elapsed()
-    t.assert(elapsed:as_secs() >= 0.0)
-
-
+    t.assert_gt(elapsed:as_secs(), 0.0, "elapsed time should be non-negative")
 end)

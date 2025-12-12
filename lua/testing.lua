@@ -40,12 +40,40 @@ function TestContext.assert_ne(a, b, msg)
     assertions.assert_ne(a, b, msg)
 end
 
+function TestContext.assert_lt(a, b, msg)
+    assertions.assert_lt(a, b, msg)
+end
+
+function TestContext.assert_gt(a, b, msg)
+    assertions.assert_gt(a, b, msg)
+end
+
+function TestContext.assert_le(a, b, msg)
+    assertions.assert_le(a, b, msg)
+end
+
+function TestContext.assert_ge(a, b, msg)
+    assertions.assert_ge(a, b, msg)
+end
+
 function TestContext.assert_match(a, b, msg)
     assertions.assert_match(a, b, msg)
 end
 
 function TestContext.assert_same(a, b, msg)
     assertions.assert_same(a, b, msg)
+end
+
+function TestContext.assert_starts_with(a, b, msg)
+    assertions.assert_starts_with(a, b, msg)
+end
+
+function TestContext.assert_ends_with(a, b, msg)
+    assertions.assert_ends_with(a, b, msg)
+end
+
+function TestContext.assert_contains(a, b, msg)
+    assertions.assert_contains(a, b, msg)
 end
 
 function TestContext.assert(cond, msg)

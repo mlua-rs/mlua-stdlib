@@ -21,7 +21,7 @@ testing:test("set_current_dir", function(t)
     -- Verify the directory changed
     local new_dir, err2 = env.current_dir()
     t.assert_eq(err2, nil)
-    t.assert(new_dir ~= original_dir, "directory should have changed")
+    t.assert_ne(new_dir, original_dir, "directory should have changed")
 
     -- Change back to original directory
     local _, err3 = env.set_current_dir(original_dir)
@@ -40,7 +40,7 @@ testing:test("current_exe", function(t)
     t.assert(#exe > 0, "current_exe should not be empty")
     -- The executable path should be a valid path (contains forward slash on Unix systems)
     if env.FAMILY == "unix" then
-        t.assert(exe:match("/"), "executable should be a full path")
+        t.assert_contains(exe, "/", "executable should be a full path")
     end
 end)
 
