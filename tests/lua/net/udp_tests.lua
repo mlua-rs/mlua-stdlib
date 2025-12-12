@@ -67,7 +67,7 @@ testing:test("UDP timeout", function(t)
     local socket, err = udp.bind("127.0.0.1", nil, { recv_timeout = "100ms" })
     t.assert_ne(socket, nil, err)
 
-    local start = time.instant()
+    local start = time.Instant.now()
     local data, recv_err = socket:recv(100)
     local elapsed = start:elapsed():as_secs()
 

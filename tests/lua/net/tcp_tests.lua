@@ -55,14 +55,14 @@ testing:test("TCP read/write timeout", function(t)
 
     local stream =
         tcp.connect("127.0.0.1", port, { read_timeout = "100ms", write_timeout = "20ms", send_buffer_size = 1024 })
-    local start = time.instant()
+    local start = time.Instant.now()
     local data, read_err = stream:read(10)
     local elapsed = start:elapsed():as_secs()
     t.assert_eq(data, nil)
     t.assert_match(read_err, "deadline has elapsed")
     t.assert(elapsed >= 0.1, "elapsed time should be at least 100ms, got " .. tostring(elapsed))
 
-    start = time.instant()
+    start = time.Instant.now()
     local ok, write_err = stream:write_all(string.rep("abcdef", 100000))
     elapsed = start:elapsed():as_secs()
     t.assert_eq(ok, nil)

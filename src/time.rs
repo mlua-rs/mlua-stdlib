@@ -1,88 +1,135 @@
-use std::time::{Duration as StdDuration, Instant as StdInstant};
+use std::fmt;
+use std::time::{Duration, Instant};
 
 use mlua::{
     Either, Error, FromLua, Lua, MetaMethod, Result, Table, UserData, UserDataMethods, UserDataRef,
     UserDataRegistry, Value,
 };
 
-pub(crate) struct Instant(StdInstant);
+/// A Lua wrapper around [`Instant`].
+#[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct LuaInstant(pub Instant);
 
-impl UserData for Instant {
+impl fmt::Debug for LuaInstant {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl UserData for LuaInstant {
     fn register(registry: &mut UserDataRegistry<Self>) {
-        registry.add_method("elapsed", |_, this, ()| Ok(Duration(this.0.elapsed())));
+        // Static method to get the current instant
+        registry.add_function("now", |_, ()| Ok(LuaInstant(Instant::now())));
+
+        registry.add_method("elapsed", |_, this, ()| Ok(LuaDuration(this.0.elapsed())));
 
         registry.add_meta_method(
             MetaMethod::Sub,
-            |_, this, other: Either<UserDataRef<Self>, Duration>| match other {
-                Either::Left(other) => Ok(Either::Left(Duration(this.0.duration_since(other.0)))),
-                Either::Right(other) => Ok(Either::Right(Instant(this.0 - other.0))),
+            |_, this, other: Either<UserDataRef<Self>, LuaDuration>| match other {
+                Either::Left(other) => Ok(Either::Left(LuaDuration(this.0.duration_since(other.0)))),
+                Either::Right(other) => Ok(Either::Right(LuaInstant(this.0 - other.0))),
             },
         );
 
-        registry.add_meta_method(MetaMethod::Add, |_, this, dur: Duration| {
-            Ok(Instant(this.0 + dur.0))
+        registry.add_meta_method(MetaMethod::Add, |_, this, dur: LuaDuration| {
+            Ok(LuaInstant(this.0 + dur.0))
+        });
+
+        registry.add_meta_method(MetaMethod::Eq, |_, this, other: UserDataRef<Self>| {
+            Ok(this.0 == other.0)
+        });
+
+        registry.add_meta_method(MetaMethod::Lt, |_, this, other: UserDataRef<Self>| {
+            Ok(this.0 < other.0)
+        });
+
+        registry.add_meta_method(MetaMethod::Le, |_, this, other: UserDataRef<Self>| {
+            Ok(this.0 <= other.0)
         });
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct Duration(pub(crate) StdDuration);
+/// A Lua wrapper around [`Duration`].
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
+pub struct LuaDuration(pub Duration);
 
-impl UserData for Duration {
+impl fmt::Debug for LuaDuration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.0.fmt(f)
+    }
+}
+
+impl UserData for LuaDuration {
     fn register(registry: &mut UserDataRegistry<Self>) {
+        // Static method to parse a duration from a string
+        registry.add_function("parse", |_, s: String| {
+            let dur = humantime::parse_duration(&s)
+                .map_err(|e| Error::RuntimeError(format!("failed to parse duration: {e}")))?;
+            Ok(LuaDuration(dur))
+        });
+
         registry.add_method("as_secs", |_, this, ()| Ok(this.0.as_secs_f64()));
         registry.add_method("as_millis", |_, this, ()| Ok(this.0.as_millis() as u64));
+        registry.add_method("as_micros", |_, this, ()| Ok(this.0.as_micros() as u64));
 
-        registry.add_meta_method(MetaMethod::ToString, |_, this, ()| Ok(format!("{:?}", this.0)));
+        registry.add_meta_method(MetaMethod::Sub, |_, this, other: LuaDuration| {
+            Ok(LuaDuration(this.0 - other.0))
+        });
+
+        registry.add_meta_method(MetaMethod::Add, |_, this, dur: LuaDuration| {
+            Ok(LuaDuration(this.0 + dur.0))
+        });
+
+        registry.add_meta_method(MetaMethod::Eq, |_, this, other: UserDataRef<Self>| {
+            Ok(this.0 == other.0)
+        });
+
+        registry.add_meta_method(MetaMethod::Lt, |_, this, other: UserDataRef<Self>| {
+            Ok(this.0 < other.0)
+        });
+
+        registry.add_meta_method(MetaMethod::Le, |_, this, other: UserDataRef<Self>| {
+            Ok(this.0 <= other.0)
+        });
+
+        registry.add_meta_method(MetaMethod::ToString, |_, this, ()| {
+            Ok(humantime::format_duration(this.0).to_string())
+        });
     }
 }
 
-impl FromLua for Duration {
+impl FromLua for LuaDuration {
     fn from_lua(value: Value, _: &Lua) -> Result<Self> {
         match value {
-            Value::Integer(i) if i >= 0 => Ok(Duration(StdDuration::from_secs(i as u64))),
-            Value::Number(n) if n >= 0. => Ok(Duration(StdDuration::from_secs_f64(n))),
-            value => {
-                match value.as_string().and_then(|s| s.to_str().ok()) {
-                    Some(s) if s.ends_with("us") => {
-                        let s = &s[..s.len() - 2];
-                        if let Ok(micros) = s.parse::<u64>() {
-                            return Ok(Duration(StdDuration::from_micros(micros)));
-                        }
-                    }
-                    Some(s) if s.ends_with("ms") => {
-                        let s = &s[..s.len() - 2];
-                        if let Ok(millis) = s.parse::<u64>() {
-                            return Ok(Duration(StdDuration::from_millis(millis)));
-                        }
-                    }
-                    Some(s) if s.ends_with('s') => {
-                        let s = &s[..s.len() - 1];
-                        if let Ok(secs) = s.parse::<u64>() {
-                            return Ok(Duration(StdDuration::from_secs(secs)));
-                        }
-                    }
-                    _ => {}
-                }
-
-                Err(Error::FromLuaConversionError {
-                    from: value.type_name(),
-                    to: "Duration".to_string(),
-                    message: Some("expected non-negative number".to_string()),
-                })
+            Value::Integer(i) if i >= 0 => return Ok(LuaDuration(Duration::from_secs(i as u64))),
+            Value::Number(n) if n >= 0. => return Ok(LuaDuration(Duration::from_secs_f64(n))),
+            Value::String(s) => {
+                let s = s.to_str()?;
+                let dur = humantime::parse_duration(&s).map_err(|e| Error::FromLuaConversionError {
+                    from: "string",
+                    to: "LuaDuration".to_string(),
+                    message: Some(format!("failed to parse duration: {e}")),
+                })?;
+                return Ok(LuaDuration(dur));
             }
+            Value::UserData(ud) if ud.is::<Self>() => {
+                return Ok(*ud.borrow()?);
+            }
+            _ => {}
         }
+        Err(Error::FromLuaConversionError {
+            from: value.type_name(),
+            to: "LuaDuration".to_string(),
+            message: Some("expected a valid string or number".to_string()),
+        })
     }
-}
-
-pub(crate) fn instant(_: &Lua, _: ()) -> Result<Instant> {
-    Ok(Instant(StdInstant::now()))
 }
 
 /// A loader for the `time` module.
 fn loader(lua: &Lua) -> Result<Table> {
     let t = lua.create_table()?;
-    t.set("instant", lua.create_function(instant)?)?;
+    t.set("Instant", lua.create_proxy::<LuaInstant>()?)?;
+    t.set("Duration", lua.create_proxy::<LuaDuration>()?)?;
     Ok(t)
 }
 

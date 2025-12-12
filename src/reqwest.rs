@@ -3,7 +3,7 @@ use mlua::{
 };
 
 use crate::http::{LuaHeaders, LuaRequest, LuaResponse};
-use crate::time::Duration;
+use crate::time::LuaDuration;
 
 /// A Lua wrapper around [`reqwest::Client`].
 #[derive(Clone, Debug)]
@@ -15,16 +15,16 @@ impl UserData for Client {
             let mut builder = reqwest::Client::builder();
 
             // Timeouts and connection pool
-            if let Some(timeout) = opt_param!(Duration, params, "timeout")? {
+            if let Some(timeout) = opt_param!(LuaDuration, params, "timeout")? {
                 builder = builder.timeout(timeout.0);
             }
-            if let Some(connect_timeout) = opt_param!(Duration, params, "connect_timeout")? {
+            if let Some(connect_timeout) = opt_param!(LuaDuration, params, "connect_timeout")? {
                 builder = builder.connect_timeout(connect_timeout.0);
             }
-            if let Some(read_timeout) = opt_param!(Duration, params, "read_timeout")? {
+            if let Some(read_timeout) = opt_param!(LuaDuration, params, "read_timeout")? {
                 builder = builder.read_timeout(read_timeout.0);
             }
-            if let Some(pool_idle_timeout) = opt_param!(Duration, params, "pool_idle_timeout")? {
+            if let Some(pool_idle_timeout) = opt_param!(LuaDuration, params, "pool_idle_timeout")? {
                 builder = builder.pool_idle_timeout(pool_idle_timeout.0);
             }
             if let Some(pool_max_idle_per_host) = opt_param!(params, "pool_max_idle_per_host")? {

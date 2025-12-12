@@ -2,7 +2,7 @@ local deps = ...
 local assertions = deps.assertions
 
 local println, style = deps.println, deps.style
-local instant = deps.instant
+local Instant = deps.Instant
 
 local Testing = {}
 Testing.__index = Testing
@@ -88,7 +88,7 @@ end
 -- Run a single test
 function Testing:_run_single_test(test)
     local ctx = TestContext.new(test.name)
-    local start_time = instant()
+    local start_time = Instant.now()
     local success, err = true, nil
 
     -- Run before_each hooks
@@ -143,7 +143,7 @@ function Testing:run(opts)
     opts = opts or {}
     local pattern = opts.pattern
     self._results = {}
-    local start_time = instant()
+    local start_time = Instant.now()
 
     -- Run before_all hooks
     for _, func in ipairs(self._hooks.before_all) do

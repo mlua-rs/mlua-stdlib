@@ -58,7 +58,7 @@ testing:test("Unix stream with timeouts", function(t)
 
     local client = unix.connect(socket_path, { read_timeout = "100ms" })
 
-    local start = time.instant()
+    local start = time.Instant.now()
     local ok, err = client:read_to_end()
     local elapsed = start:elapsed():as_secs()
     t.assert_eq(ok, nil)

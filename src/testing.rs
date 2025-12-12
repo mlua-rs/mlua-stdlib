@@ -16,7 +16,7 @@ pub(crate) fn loader(lua: &Lua) -> Result<Table> {
     deps.set("print", lua.create_function(crate::terminal::print)?)?;
     deps.set("println", lua.create_function(crate::terminal::println)?)?;
     deps.set("style", lua.create_function(crate::terminal::style)?)?;
-    deps.set("instant", lua.create_function(crate::time::instant)?)?;
+    deps.set("Instant", lua.create_proxy::<crate::time::LuaInstant>()?)?;
 
     lua.load(include_str!("../lua/testing.lua"))
         .set_name("@mlua-stdlib/testing.lua")

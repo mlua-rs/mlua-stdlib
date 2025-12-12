@@ -96,6 +96,7 @@ macro_rules! include_tests {
 include_tests! {
     assertions,
     env,
+    time,
     #[cfg(feature = "json")] json,
     #[cfg(feature = "regex")] regex,
     #[cfg(feature = "yaml")] yaml,

@@ -11,18 +11,18 @@ use tokio::task::{AbortHandle, JoinHandle, JoinSet};
 use tokio::time::{Instant as TokioInstant, MissedTickBehavior};
 use tokio_util::time::FutureExt as _;
 
-use crate::time::Duration;
+use crate::time::LuaDuration;
 
 #[derive(Clone, Default)]
 struct Params {
     name: Option<String>,
-    timeout: Option<Duration>,
+    timeout: Option<LuaDuration>,
 }
 
 pub struct TaskHandle {
     name: Option<String>,
     started: Rc<RefCell<Option<Instant>>>,
-    elapsed: Rc<RefCell<Option<Duration>>>,
+    elapsed: Rc<RefCell<Option<LuaDuration>>>,
     handle: Either<Option<JoinHandle<Result<Value>>>, AbortHandle>,
 }
 
@@ -64,7 +64,7 @@ impl UserData for TaskHandle {
 
         registry.add_method("elapsed", |_, this, ()| match *this.elapsed.borrow() {
             Some(dur) => Ok(Some(dur)),
-            None => Ok(this.started.borrow().map(|s| Duration(s.elapsed()))),
+            None => Ok(this.started.borrow().map(|s| LuaDuration(s.elapsed()))),
         });
 
         registry.add_method("is_finished", |_, this, ()| match this.handle.as_ref() {
@@ -83,7 +83,7 @@ pub struct Task {
 impl Task {
     fn new(func: Function, params: Option<Table>) -> Result<Self> {
         let name: Option<String> = opt_param!(params, "name")?;
-        let timeout: Option<Duration> = opt_param!(params, "timeout")?;
+        let timeout: Option<LuaDuration> = opt_param!(params, "timeout")?;
         Ok(Self {
             func,
             params: Params { name, timeout },
@@ -122,7 +122,7 @@ impl UserData for Group {
                 let abort_handle = this.0.spawn_local(async move {
                     *started2.borrow_mut() = Some(Instant::now());
                     defer! {
-                        *elapsed2.borrow_mut() = Some(Duration(started2.borrow().unwrap().elapsed()));
+                        *elapsed2.borrow_mut() = Some(LuaDuration(started2.borrow().unwrap().elapsed()));
                     }
 
                     let result = match timeout {
@@ -191,7 +191,7 @@ fn spawn_inner(params: Params, fut: impl Future<Output = Result<Value>> + 'stati
     let handle = tokio::task::spawn_local(async move {
         *started2.borrow_mut() = Some(Instant::now());
         defer! {
-            *elapsed2.borrow_mut() = Some(Duration(started2.borrow().unwrap().elapsed()));
+            *elapsed2.borrow_mut() = Some(LuaDuration(started2.borrow().unwrap().elapsed()));
         }
 
         let result = match timeout {
@@ -226,7 +226,7 @@ pub fn spawn(_: &Lua, (func, args): (Either<Function, UserDataRef<Task>>, MultiV
 
 pub fn spawn_every(
     _: &Lua,
-    (dur, func, args): (Duration, Either<Function, UserDataRef<Task>>, MultiValue),
+    (dur, func, args): (LuaDuration, Either<Function, UserDataRef<Task>>, MultiValue),
 ) -> Result<TaskHandle> {
     let (func, params) = match func {
         Either::Left(f) => (f, Params::default()),
@@ -243,7 +243,7 @@ pub fn spawn_every(
     })
 }
 
-pub async fn sleep(_: Lua, dur: Duration) -> Result<()> {
+pub async fn sleep(_: Lua, dur: LuaDuration) -> Result<()> {
     tokio::time::sleep(dur.0).await;
     Ok(())
 }

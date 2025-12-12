@@ -17,7 +17,7 @@ use tokio::io::{AsyncRead, AsyncWrite};
 use super::{LuaRequest, LuaResponse};
 use crate::net::common::Accept;
 use crate::net::{AnyListener, AnyStream};
-use crate::time::Duration;
+use crate::time::LuaDuration;
 
 /// Local executor that can spawn `!Send` futures
 #[derive(Clone, Copy)]
@@ -55,7 +55,7 @@ impl LuaHttpServer {
         if let Some(max_headers) = opt_param!(http1, "max_headers")? {
             conn.http1().max_headers(max_headers);
         }
-        if let Some(header_read_timeout) = opt_param!(Duration, http1, "header_read_timeout")? {
+        if let Some(header_read_timeout) = opt_param!(LuaDuration, http1, "header_read_timeout")? {
             conn.http1().header_read_timeout(header_read_timeout.0);
         }
         if let Some(max_buf_size) = opt_param!(http1, "max_buf_size")? {
@@ -83,10 +83,10 @@ impl LuaHttpServer {
         if let Some(max_concurrent_streams) = opt_param!(u32, http2, "max_concurrent_streams")? {
             conn.http2().max_concurrent_streams(max_concurrent_streams);
         }
-        if let Some(keep_alive_interval) = opt_param!(Duration, http2, "keep_alive_interval")? {
+        if let Some(keep_alive_interval) = opt_param!(LuaDuration, http2, "keep_alive_interval")? {
             conn.http2().keep_alive_interval(keep_alive_interval.0);
         }
-        if let Some(keep_alive_timeout) = opt_param!(Duration, http2, "keep_alive_timeout")? {
+        if let Some(keep_alive_timeout) = opt_param!(LuaDuration, http2, "keep_alive_timeout")? {
             conn.http2().keep_alive_timeout(keep_alive_timeout.0);
         }
         if let Some(max_header_list_size) = opt_param!(u32, http2, "max_header_list_size")? {
@@ -167,7 +167,7 @@ impl LuaHttpServer {
     }
 
     /// Shutdown the server gracefully, waiting for existing connections to finish
-    pub async fn graceful_shutdown(&self, wait: Duration) {
+    pub async fn graceful_shutdown(&self, wait: LuaDuration) {
         let shutdown_tx = mem::take(&mut *self.shutdown_notify.lock());
         let _ = shutdown_tx.send(());
         let graceful = mem::take(&mut *self.graceful.lock());
@@ -199,8 +199,8 @@ impl UserData for LuaHttpServer {
 
         registry.add_async_method(
             "graceful_shutdown",
-            |_lua, this, wait: Option<Duration>| async move {
-                let wait = wait.unwrap_or(Duration(std::time::Duration::from_secs(60)));
+            |_lua, this, wait: Option<LuaDuration>| async move {
+                let wait = wait.unwrap_or(LuaDuration(std::time::Duration::from_secs(60)));
                 this.graceful_shutdown(wait).await;
                 Ok(())
             },

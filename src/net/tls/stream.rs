@@ -10,7 +10,7 @@ use tokio_rustls::{TlsAcceptor, TlsConnector, TlsStream};
 use super::client::TlsClientConfig;
 use super::server::TlsServerConfig;
 use crate::net::AddressProvider;
-use crate::time::Duration;
+use crate::time::LuaDuration;
 
 /// A TLS stream wrapper for Lua.
 ///
@@ -18,8 +18,8 @@ use crate::time::Duration;
 /// It consumes the underlying stream to prevent further use of the plain stream.
 pub struct LuaTlsStream<S> {
     inner: TlsStream<S>,
-    read_timeout: Option<Duration>,
-    write_timeout: Option<Duration>,
+    read_timeout: Option<LuaDuration>,
+    write_timeout: Option<LuaDuration>,
 }
 
 impl<S> LuaTlsStream<S>
@@ -58,11 +58,11 @@ where
         })
     }
 
-    pub(crate) fn set_read_timeout(&mut self, dur: Option<Duration>) {
+    pub(crate) fn set_read_timeout(&mut self, dur: Option<LuaDuration>) {
         self.read_timeout = dur;
     }
 
-    pub(crate) fn set_write_timeout(&mut self, dur: Option<Duration>) {
+    pub(crate) fn set_write_timeout(&mut self, dur: Option<LuaDuration>) {
         self.write_timeout = dur;
     }
 
@@ -128,12 +128,12 @@ where
         registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
         registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?));
 
-        registry.add_method_mut("set_read_timeout", |_, this, dur: Option<Duration>| {
+        registry.add_method_mut("set_read_timeout", |_, this, dur: Option<LuaDuration>| {
             this.read_timeout = dur;
             Ok(())
         });
 
-        registry.add_method_mut("set_write_timeout", |_, this, dur: Option<Duration>| {
+        registry.add_method_mut("set_write_timeout", |_, this, dur: Option<LuaDuration>| {
             this.write_timeout = dur;
             Ok(())
         });

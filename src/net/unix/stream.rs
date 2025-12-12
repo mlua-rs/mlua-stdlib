@@ -10,12 +10,12 @@ use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _, Re
 use tokio::net::UnixStream;
 
 use crate::net::{AddressProvider, AnySocketAddr};
-use crate::time::Duration;
+use crate::time::LuaDuration;
 
 pub struct LuaUnixStream {
     pub(crate) stream: UnixStream,
-    pub(crate) read_timeout: Option<Duration>,
-    pub(crate) write_timeout: Option<Duration>,
+    pub(crate) read_timeout: Option<LuaDuration>,
+    pub(crate) write_timeout: Option<LuaDuration>,
 }
 
 impl Deref for LuaUnixStream {
@@ -85,12 +85,12 @@ impl UserData for LuaUnixStream {
         registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
         registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?));
 
-        registry.add_method_mut("set_read_timeout", |_, this, dur: Option<Duration>| {
+        registry.add_method_mut("set_read_timeout", |_, this, dur: Option<LuaDuration>| {
             this.read_timeout = dur;
             Ok(())
         });
 
-        registry.add_method_mut("set_write_timeout", |_, this, dur: Option<Duration>| {
+        registry.add_method_mut("set_write_timeout", |_, this, dur: Option<LuaDuration>| {
             this.write_timeout = dur;
             Ok(())
         });
@@ -139,7 +139,7 @@ pub async fn connect(
     _: Lua,
     (path, params): (PathBuf, Option<Table>),
 ) -> Result<StdResult<LuaUnixStream, String>> {
-    let timeout = opt_param!(Duration, params, "timeout")?; // A single timeout for any operation
+    let timeout = opt_param!(LuaDuration, params, "timeout")?; // A single timeout for any operation
     let connect_timeout = opt_param!(params, "connect_timeout")?.or(timeout);
     let read_timeout = opt_param!(params, "read_timeout")?.or(timeout);
     let write_timeout = opt_param!(params, "write_timeout")?.or(timeout);

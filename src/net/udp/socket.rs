@@ -6,12 +6,12 @@ use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, U
 use tokio::net::UdpSocket;
 
 use crate::net::{AddressProvider, AnySocketAddr};
-use crate::time::Duration;
+use crate::time::LuaDuration;
 
 /// A Lua userdata wrapper around [`UdpSocket`].
 pub struct LuaUdpSocket {
     pub(crate) socket: UdpSocket,
-    pub(crate) recv_timeout: Option<Duration>,
+    pub(crate) recv_timeout: Option<LuaDuration>,
 }
 
 impl Deref for LuaUdpSocket {
@@ -49,7 +49,7 @@ impl UserData for LuaUdpSocket {
         registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));
         registry.add_method("peer_addr", |_, this, ()| Ok(this.peer_addr()?));
 
-        registry.add_method_mut("set_recv_timeout", |_, this, dur: Option<Duration>| {
+        registry.add_method_mut("set_recv_timeout", |_, this, dur: Option<LuaDuration>| {
             this.recv_timeout = dur;
             Ok(())
         });
@@ -122,7 +122,7 @@ pub async fn bind(
     (host, port, params): (String, Option<u16>, Option<Table>),
 ) -> Result<StdResult<LuaUdpSocket, String>> {
     let port = port.unwrap_or(0);
-    let recv_timeout = opt_param!(Duration, params, "recv_timeout")?;
+    let recv_timeout = opt_param!(LuaDuration, params, "recv_timeout")?;
 
     let socket = lua_try!(UdpSocket::bind((host, port)).await);
 

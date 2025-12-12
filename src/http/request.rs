@@ -9,7 +9,7 @@ use mlua::{
 };
 
 use crate::http::{LuaBody, LuaHeaderMapExt, LuaHeaders, LuaMethod};
-use crate::time::Duration;
+use crate::time::LuaDuration;
 
 /// A Lua wrapper around [`http::Request`].
 pub struct LuaRequest {
@@ -181,13 +181,13 @@ impl FromLua for LuaRequest {
 /// Additional custom request parameters
 #[derive(Clone, Debug, Default)]
 pub(crate) struct RequestParams {
-    pub(crate) timeout: Option<Duration>,
+    pub(crate) timeout: Option<LuaDuration>,
 }
 
 impl RequestParams {
     pub(crate) fn from_table(table: &Table) -> Result<Self> {
         let mut params = RequestParams::default();
-        if let Some(timeout) = opt_param!(Duration, Some(table), "timeout")? {
+        if let Some(timeout) = opt_param!(LuaDuration, Some(table), "timeout")? {
             params.timeout = Some(timeout);
         }
         Ok(params)
