@@ -2,8 +2,8 @@ use std::ops::{Deref, DerefMut};
 
 use bytes::Bytes;
 use mlua::{
-    BorrowedBytes, Error, FromLua, Lua, MetaMethod, Result, String as LuaString, UserData, UserDataMethods,
-    UserDataRegistry, Value,
+    BorrowedBytes, Error, FromLua, Lua, MetaMethod, Result, String as LuaString, Table, UserData,
+    UserDataMethods, UserDataRegistry, Value,
 };
 
 /// A Lua userdata wrapper around [`Bytes`].
@@ -28,6 +28,10 @@ impl DerefMut for LuaBytes {
 
 impl UserData for LuaBytes {
     fn register(registry: &mut UserDataRegistry<Self>) {
+        registry.add_function("new", |_, data: LuaString| {
+            Ok(Self(Bytes::copy_from_slice(&data.as_bytes())))
+        });
+
         registry.add_method("len", |_, this, ()| Ok(this.len()));
 
         registry.add_method("is_empty", |_, this, ()| Ok(this.is_empty()));
@@ -94,4 +98,19 @@ impl Deref for AsBytesRefImpl<'_> {
             Self::Lua(s) => s.as_ref(),
         }
     }
+}
+
+/// A loader for the `bytes` module.
+fn loader(lua: &Lua) -> Result<Table> {
+    let t = lua.create_table()?;
+    t.set("Bytes", lua.create_proxy::<LuaBytes>()?)?;
+    Ok(t)
+}
+
+/// Registers the `bytes` module in the given Lua state.
+pub fn register(lua: &Lua, name: Option<&str>) -> Result<Table> {
+    let name = name.unwrap_or("@bytes");
+    let value = loader(lua)?;
+    lua.register_module(name, &value)?;
+    Ok(value)
 }

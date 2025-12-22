@@ -9,6 +9,7 @@ async fn run_file(modname: &str) -> Result<()> {
 
     // Preload all modules
     mlua_stdlib::assertions::register(&lua, None)?;
+    mlua_stdlib::bytes::register(&lua, None)?;
     mlua_stdlib::env::register(&lua, None)?;
     let testing = mlua_stdlib::testing::register(&lua, None)?;
     mlua_stdlib::time::register(&lua, None)?;
@@ -95,6 +96,7 @@ macro_rules! include_tests {
 
 include_tests! {
     assertions,
+    bytes,
     env,
     time,
     #[cfg(feature = "json")] json,
