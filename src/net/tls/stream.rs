@@ -2,7 +2,7 @@ use std::io;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use mlua::{MaybeSend, String as LuaString, UserData, UserDataMethods, UserDataRegistry};
+use mlua::{LuaString, MaybeSend, MaybeSync, UserData, UserDataMethods, UserDataRegistry};
 use rustls::pki_types::ServerName;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
 use tokio_rustls::{TlsAcceptor, TlsConnector, TlsStream};
@@ -122,7 +122,7 @@ where
 
 impl<S> UserData for LuaTlsStream<S>
 where
-    S: AsyncRead + AsyncWrite + AddressProvider + Unpin + MaybeSend + 'static,
+    S: AsyncRead + AsyncWrite + AddressProvider + Unpin + MaybeSend + MaybeSync + 'static,
 {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_method("local_addr", |_, this, ()| Ok(this.local_addr()?));

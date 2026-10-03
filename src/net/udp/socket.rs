@@ -2,7 +2,7 @@ use std::io;
 use std::ops::Deref;
 use std::result::Result as StdResult;
 
-use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, UserDataRegistry, Value};
+use mlua::{Lua, LuaString, Result, Table, UserData, UserDataMethods, UserDataRegistry, Value};
 use tokio::net::UdpSocket;
 
 use crate::net::{AddressProvider, AnySocketAddr};

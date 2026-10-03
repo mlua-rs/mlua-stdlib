@@ -2,8 +2,8 @@ use std::ops::{Deref, DerefMut};
 
 use bytes::Bytes;
 use mlua::{
-    BorrowedBytes, Error, FromLua, Lua, MetaMethod, Result, String as LuaString, Table, UserData,
-    UserDataMethods, UserDataRegistry, Value,
+    BorrowedBytes, Error, FromLua, Lua, LuaString, MetaMethod, Result, Table, UserData, UserDataMethods,
+    UserDataRegistry, Value,
 };
 
 /// A Lua userdata wrapper around [`Bytes`].
@@ -85,7 +85,7 @@ impl StringOrBytes {
 
 enum AsBytesRefImpl<'a> {
     Ref(&'a [u8]),
-    Lua(BorrowedBytes<'a>),
+    Lua(BorrowedBytes),
 }
 
 impl Deref for AsBytesRefImpl<'_> {

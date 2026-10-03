@@ -1,4 +1,4 @@
-use mlua::{ExternalResult, FromLua, Lua, Result, String as LuaString, Value};
+use mlua::{ExternalResult, FromLua, Lua, LuaString, Result, Value};
 
 /// A Lua wrapper around [`http::Method`].
 #[derive(Clone, Default, Debug)]

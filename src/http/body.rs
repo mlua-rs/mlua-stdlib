@@ -242,16 +242,16 @@ impl UserData for LuaBody {
         // Consumes the body if it is not buffered, returns a function that can be
         // called to get the next chunk of data
         registry.add_method_mut("reader", |lua, this, ()| {
-            use std::cell::RefCell;
-            use std::rc::Rc;
+            use std::sync::Arc;
+
+            use tokio::sync::Mutex;
 
             let body_stream = this.consume_if_unbuffered().into_data_stream();
-            let body_stream = Rc::new(RefCell::new(body_stream));
+            let body_stream = Arc::new(Mutex::new(body_stream));
             lua.create_async_function(move |lua, ()| {
                 let body_stream = body_stream.clone();
-                #[allow(clippy::await_holding_refcell_ref)]
                 async move {
-                    let mut body_stream = lua_try!(body_stream.try_borrow_mut());
+                    let mut body_stream = lua_try!(body_stream.try_lock());
                     match body_stream.next().await {
                         Some(Ok(data)) => {
                             let data = lua.create_any_userdata(data)?;

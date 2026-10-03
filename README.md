@@ -28,7 +28,7 @@ With the following optional modules:
 
 The following feature flags are passed to `mlua`, when enabled:
 
-- `lua51`, `lua52`, `lua53`, `lua54`, `luau` - Lua version selection
+- `lua51`, `lua52`, `lua53`, `lua54`, `lua55`, `luau` - Lua version selection
 - `send` - Enable `Send+Sync` support
 - `vendored` - Use vendored Lua
 

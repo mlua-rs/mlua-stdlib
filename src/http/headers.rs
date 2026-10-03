@@ -1,7 +1,7 @@
 use http::header::{HeaderMap, HeaderName, HeaderValue};
 use mlua::{
-    Either, ExternalError, ExternalResult, FromLua, Lua, MetaMethod, Result, String as LuaString, Table,
-    UserData, UserDataMethods, Value,
+    Either, ExternalError, ExternalResult, FromLua, Lua, LuaString, MetaMethod, Result, Table, UserData,
+    UserDataMethods, Value,
 };
 
 /// A Lua userdata wrapper around [`http::HeaderMap`].

@@ -6,7 +6,9 @@ use std::path::PathBuf;
 use std::result::Result as StdResult;
 use std::sync::Arc;
 
-use mlua::{AnyUserData, Lua, Result as LuaResult, Table, UserData, UserDataMethods, UserDataRegistry};
+use mlua::{
+    AnyUserData, Lua, MaybeSync, Result as LuaResult, Table, UserData, UserDataMethods, UserDataRegistry,
+};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer};
 use rustls::{RootCertStore, ServerConfig};
 
@@ -191,7 +193,7 @@ where
 impl<L> UserData for LuaTlsListener<L>
 where
     L: Accept + 'static,
-    L::Stream: AddressProvider,
+    L::Stream: AddressProvider + MaybeSync,
 {
     fn register(registry: &mut UserDataRegistry<Self>) {
         registry.add_method("local_addr", |_, this, ()| Ok(this.inner.local_addr()?));

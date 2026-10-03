@@ -5,7 +5,7 @@ use std::pin::Pin;
 use std::result::Result as StdResult;
 use std::task::{Context, Poll};
 
-use mlua::{Lua, Result, String as LuaString, Table, UserData, UserDataMethods, UserDataRegistry};
+use mlua::{Lua, LuaString, Result, Table, UserData, UserDataMethods, UserDataRegistry};
 use tokio::io::{AsyncRead, AsyncReadExt as _, AsyncWrite, AsyncWriteExt as _, ReadBuf};
 use tokio::net::{TcpStream, lookup_host};
 

@@ -12,6 +12,7 @@ lua51 = ["mlua/lua51"]
 lua52 = ["mlua/lua52"]
 lua53 = ["mlua/lua53"]
 lua54 = ["mlua/lua54"]
+lua55 = ["mlua/lua55"]
 luau = ["mlua/luau"]
 async = ["mlua/async", "dep:tokio", "dep:tokio-util", "dep:futures-util"]
 send = ["mlua/send"]
@@ -28,7 +29,7 @@ tls = ["net", "dep:rustls", "dep:tokio-rustls", "dep:rustls-pemfile", "dep:rustl
 
 [dependencies]
 bytes = "1"
-mlua = { version = "0.11.5", features = ["error-send", "macros"] }
+mlua = { version = "0.12.2", features = ["error-send", "macros"] }
 ouroboros = { version = "0.18", optional = true }
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }

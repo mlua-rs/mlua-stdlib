@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::result::Result as StdResult;
 use std::sync::LazyLock;
 
-use mlua::{Lua, MetaMethod, Result, String as LuaString, Table, UserData, UserDataMethods, Value, Variadic};
+use mlua::{Lua, LuaString, MetaMethod, Result, Table, UserData, UserDataMethods, Value, Variadic};
 use ouroboros::self_referencing;
 use quick_cache::sync::Cache;
 

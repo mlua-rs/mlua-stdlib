@@ -4,8 +4,7 @@ use http::request::{Parts, Request};
 use http_body_util::Either as EitherBody;
 use hyper::body::Incoming;
 use mlua::{
-    AnyUserData, Error, FromLua, Lua, MetaMethod, Result, String as LuaString, Table, UserData,
-    UserDataMethods, Value,
+    AnyUserData, Error, FromLua, Lua, LuaString, MetaMethod, Result, Table, UserData, UserDataMethods, Value,
 };
 
 use crate::http::{LuaBody, LuaHeaderMapExt, LuaHeaders, LuaMethod};

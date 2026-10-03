@@ -6,7 +6,7 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use std::{fmt, io};
 
-use mlua::{AnyUserData, Error, FromLua, IntoLua, Lua, MaybeSend, Result, Value};
+use mlua::{AnyUserData, Error, FromLua, IntoLua, Lua, MaybeSend, MaybeSync, Result, Value};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
 use tokio::net::TcpStream;
 #[cfg(unix)]
@@ -175,7 +175,7 @@ impl FromLua for AnyStream {
                 Ok(AnyStream::UnixTls(stream))
             }
             _ => {
-                let type_name = value.type_name().ok().flatten();
+                let type_name = value.type_name().and_then(|s| s.to_str()).ok();
                 let type_name = type_name.as_deref().unwrap_or("unknown");
                 Err(Error::FromLuaConversionError {
                     from: "UserData",
@@ -199,15 +199,14 @@ pub enum AnyListener {
 }
 
 /// Trait for accepting incoming connections from various listener types.
-pub trait Accept {
+pub trait Accept: MaybeSend + MaybeSync {
     type Stream: AsyncRead + AsyncWrite + Unpin + MaybeSend + 'static;
 
     /// Get the local address that the listener is bound to.
     fn local_addr(&self) -> io::Result<AnySocketAddr>;
 
     /// Accept an incoming connection.
-    #[allow(async_fn_in_trait)]
-    async fn accept(&self) -> io::Result<(Self::Stream, AnySocketAddr)>;
+    fn accept(&self) -> impl Future<Output = io::Result<(Self::Stream, AnySocketAddr)>> + MaybeSend;
 }
 
 impl Accept for AnyListener {
@@ -274,7 +273,7 @@ impl FromLua for AnyListener {
                 Ok(AnyListener::UnixTls(listener))
             }
             _ => {
-                let type_name = value.type_name().ok().flatten();
+                let type_name = value.type_name().and_then(|s| s.to_str()).ok();
                 let type_name = type_name.as_deref().unwrap_or("unknown");
                 Err(Error::FromLuaConversionError {
                     from: "UserData",

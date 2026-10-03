@@ -1,2 +1,2 @@
 [lua54]
-features = "lua54,vendored,json,regex,yaml,http,task"
+features = "lua54,vendored,json,regex,yaml,http,reqwest,task"

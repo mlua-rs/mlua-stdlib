@@ -1,9 +1,10 @@
 use std::result::Result as StdResult;
 use std::sync::Arc;
 
+use mlua::serde::SerializeOptions;
 use mlua::{
     AnyUserData, Error, Function, Integer as LuaInteger, IntoLuaMulti, Lua, LuaSerdeExt, MetaMethod,
-    MultiValue, Result, SerializeOptions, Table, UserData, UserDataMethods, UserDataRefMut, Value,
+    MultiValue, Result, Table, UserData, UserDataMethods, UserDataRefMut, Value,
 };
 use ouroboros::self_referencing;
 use serde::{Serialize, Serializer};
@@ -16,6 +17,9 @@ pub(crate) struct YamlObject {
     root: Arc<serde_yaml::Value>,
     current: *const serde_yaml::Value,
 }
+
+unsafe impl Send for YamlObject {}
+unsafe impl Sync for YamlObject {}
 
 impl Serialize for YamlObject {
     fn serialize<S: Serializer>(&self, serializer: S) -> StdResult<S::Ok, S::Error> {
@@ -62,11 +66,7 @@ impl YamlObject {
                 } else if let Some(n) = n.as_f64() {
                     Ok(Value::Number(n))
                 } else {
-                    Err(Error::ToLuaConversionError {
-                        from: "number".to_string(),
-                        to: "integer or float",
-                        message: Some("number is too big to fit in a Lua integer".to_owned()),
-                    })
+                    Err(Error::runtime("number is too big to fit in a Lua integer"))
                 }
             }
             serde_yaml::Value::String(s) => Ok(Value::String(lua.create_string(s)?)),

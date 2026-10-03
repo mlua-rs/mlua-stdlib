@@ -1,12 +1,12 @@
-use std::cell::RefCell;
 use std::panic;
-use std::rc::Rc;
+use std::sync::Arc;
 use std::time::Instant;
 
 use mlua::{
     Either, ExternalError, Function, Lua, MetaMethod, MultiValue, Result, Table, UserData, UserDataFields,
     UserDataMethods, UserDataRef, UserDataRegistry, Value,
 };
+use parking_lot::Mutex;
 use tokio::task::{AbortHandle, JoinHandle, JoinSet};
 use tokio::time::{Instant as TokioInstant, MissedTickBehavior};
 use tokio_util::time::FutureExt as _;
@@ -21,8 +21,8 @@ struct Params {
 
 pub struct TaskHandle {
     name: Option<String>,
-    started: Rc<RefCell<Option<Instant>>>,
-    elapsed: Rc<RefCell<Option<LuaDuration>>>,
+    started: Arc<Mutex<Option<Instant>>>,
+    elapsed: Arc<Mutex<Option<LuaDuration>>>,
     handle: Either<Option<JoinHandle<Result<Value>>>, AbortHandle>,
 }
 
@@ -62,9 +62,9 @@ impl UserData for TaskHandle {
             Ok(())
         });
 
-        registry.add_method("elapsed", |_, this, ()| match *this.elapsed.borrow() {
+        registry.add_method("elapsed", |_, this, ()| match *this.elapsed.lock() {
             Some(dur) => Ok(Some(dur)),
-            None => Ok(this.started.borrow().map(|s| LuaDuration(s.elapsed()))),
+            None => Ok(this.started.lock().map(|s| LuaDuration(s.elapsed()))),
         });
 
         registry.add_method("is_finished", |_, this, ()| match this.handle.as_ref() {
@@ -110,8 +110,8 @@ impl UserData for Group {
                     .right()
                     .map_or(Params::default(), |ud| ud.params.clone());
 
-                let started = Rc::new(RefCell::new(None));
-                let elapsed = Rc::new(RefCell::new(None));
+                let started = Arc::new(Mutex::new(None));
+                let elapsed = Arc::new(Mutex::new(None));
                 let (started2, elapsed2) = (started.clone(), elapsed.clone());
 
                 let fut = match func {
@@ -120,9 +120,10 @@ impl UserData for Group {
                 };
 
                 let abort_handle = this.0.spawn_local(async move {
-                    *started2.borrow_mut() = Some(Instant::now());
+                    *started2.lock() = Some(Instant::now());
                     defer! {
-                        *elapsed2.borrow_mut() = Some(LuaDuration(started2.borrow().unwrap().elapsed()));
+                        let elapsed = started2.lock().unwrap().elapsed();
+                        *elapsed2.lock() = Some(LuaDuration(elapsed));
                     }
 
                     let result = match timeout {
@@ -184,14 +185,15 @@ impl UserData for Group {
 fn spawn_inner(params: Params, fut: impl Future<Output = Result<Value>> + 'static) -> Result<TaskHandle> {
     let Params { name, timeout } = params;
 
-    let started = Rc::new(RefCell::new(None));
-    let elapsed = Rc::new(RefCell::new(None));
+    let started = Arc::new(Mutex::new(None));
+    let elapsed = Arc::new(Mutex::new(None));
     let (started2, elapsed2) = (started.clone(), elapsed.clone());
 
     let handle = tokio::task::spawn_local(async move {
-        *started2.borrow_mut() = Some(Instant::now());
+        *started2.lock() = Some(Instant::now());
         defer! {
-            *elapsed2.borrow_mut() = Some(LuaDuration(started2.borrow().unwrap().elapsed()));
+            let elapsed = started2.lock().unwrap().elapsed();
+            *elapsed2.lock() = Some(LuaDuration(elapsed));
         }
 
         let result = match timeout {

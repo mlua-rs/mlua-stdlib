@@ -1,10 +1,10 @@
 use std::result::Result as StdResult;
 use std::sync::Arc;
 
+use mlua::serde::SerializeOptions;
 use mlua::{
     AnyUserData, Error as LuaError, Function, Integer as LuaInteger, IntoLuaMulti, Lua, LuaSerdeExt,
-    MetaMethod, MultiValue, Result, SerializeOptions, String as LuaString, Table, UserData, UserDataMethods,
-    UserDataRefMut, Value,
+    LuaString, MetaMethod, MultiValue, Result, Table, UserData, UserDataMethods, UserDataRefMut, Value,
 };
 use ouroboros::self_referencing;
 use serde::{Serialize, Serializer};
@@ -17,6 +17,9 @@ pub(crate) struct JsonObject {
     root: Arc<serde_json::Value>,
     current: *const serde_json::Value,
 }
+
+unsafe impl Send for JsonObject {}
+unsafe impl Sync for JsonObject {}
 
 impl Serialize for JsonObject {
     fn serialize<S: Serializer>(&self, serializer: S) -> StdResult<S::Ok, S::Error> {
@@ -68,11 +71,7 @@ impl JsonObject {
                 } else if let Some(n) = n.as_f64() {
                     Ok(Value::Number(n))
                 } else {
-                    Err(LuaError::ToLuaConversionError {
-                        from: "number".to_string(),
-                        to: "integer or float",
-                        message: Some("number is too big to fit in a Lua integer".to_owned()),
-                    })
+                    Err(LuaError::runtime("number is too big to fit in a Lua integer"))
                 }
             }
             serde_json::Value::String(s) => Ok(Value::String(lua.create_string(s)?)),

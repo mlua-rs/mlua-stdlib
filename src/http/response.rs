@@ -6,8 +6,8 @@ use http::response::{Parts, Response};
 use http_body_util::{BodyExt, Either as EitherBody};
 use hyper_util::client::legacy::connect::HttpInfo;
 use mlua::{
-    AnyUserData, ExternalResult, FromLua, Lua, MetaMethod, Result, String as LuaString, UserData,
-    UserDataMethods, Value,
+    AnyUserData, ExternalResult, FromLua, Lua, LuaString, MetaMethod, Result, UserData, UserDataMethods,
+    Value,
 };
 
 use super::headers::LuaHeaderMapExt;
